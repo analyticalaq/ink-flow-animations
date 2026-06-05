@@ -383,6 +383,64 @@ function StudioPage() {
             </div>
           </div>
 
+          <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Voice
+            </p>
+            <div className="space-y-2">
+              <Label className="text-xs">Voice</Label>
+              <Select
+                value={voiceURI}
+                onValueChange={(v) => setVoiceURI(v)}
+                disabled={!voices.length}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={voices.length ? "Pick a voice" : "Loading…"} />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {voices.map((v) => (
+                    <SelectItem key={v.voiceURI} value={v.voiceURI}>
+                      {v.name} — {v.lang}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Voice style</Label>
+              <Select value={voiceStyle} onValueChange={(v) => setVoiceStyle(v as VoiceStyle)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(VOICE_STYLES) as VoiceStyle[]).map((k) => (
+                    <SelectItem key={k} value={k}>{VOICE_STYLES[k].label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Narration speed</Label>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {speed.toFixed(2)}×
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0.5}
+                max={1.5}
+                step={0.05}
+                value={speed}
+                onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                className="w-full accent-primary"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Scales both voice and animation so the exported video stays in sync.
+              </p>
+            </div>
+          </div>
+
           <Button
             onClick={onGenerate}
             disabled={loading || !script.trim()}
