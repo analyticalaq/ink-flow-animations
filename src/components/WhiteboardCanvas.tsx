@@ -294,7 +294,7 @@ export function WhiteboardCanvas({
                   strokeLinejoin="round"
                   pathLength={1000}
                   className={`wb-path-${animKey}`}
-                  filter={isChalk ? `url(#wb-rough-${animKey})` : undefined}
+                  filter={(isChalk || isSketch) ? `url(#wb-rough-${animKey})` : undefined}
                   style={
                     {
                       ["--len" as string]: "1000",
@@ -328,7 +328,7 @@ export function WhiteboardCanvas({
                   strokeLinejoin="round"
                   pathLength={1000}
                   className={`wb-path-${animKey}`}
-                  filter={isChalk ? `url(#wb-rough-${animKey})` : undefined}
+                  filter={(isChalk || isSketch) ? `url(#wb-rough-${animKey})` : undefined}
                   style={
                     {
                       ["--len" as string]: "1000",
@@ -361,7 +361,7 @@ export function WhiteboardCanvas({
                   strokeLinecap="round"
                   pathLength={1000}
                   className={`wb-path-${animKey}`}
-                  filter={isChalk ? `url(#wb-rough-${animKey})` : undefined}
+                  filter={(isChalk || isSketch) ? `url(#wb-rough-${animKey})` : undefined}
                   style={
                     {
                       ["--len" as string]: "1000",
