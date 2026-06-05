@@ -154,8 +154,9 @@ function StudioPage() {
     setPlayKey((k) => k + 1);
 
     try {
-      const svg = wrap.querySelector("svg");
-      if (!svg) throw new Error("No canvas");
+      const svgEl = wrap.querySelector("svg");
+      if (!svgEl) throw new Error("No canvas");
+      const svg: SVGSVGElement = svgEl as SVGSVGElement;
 
       const W = 1280;
       const H = 720;
