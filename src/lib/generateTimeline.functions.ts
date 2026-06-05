@@ -32,7 +32,12 @@ Rules:
 - Use arrows to show flow between concepts; coordinates should match the source/target element positions.
 - Total duration should be 15-35 seconds.`;
 
-type Item = Record<string, unknown> & { delay?: number };
+export type GeneratedItem =
+  | { type: "text"; content: string; x: number; y: number; size?: number; delay: number; duration?: number }
+  | { type: "icon"; name: string; x: number; y: number; size?: number; delay: number; duration?: number }
+  | { type: "arrow"; from: [number, number]; to: [number, number]; delay: number; duration?: number }
+  | { type: "circle"; x: number; y: number; r: number; delay: number; duration?: number }
+  | { type: "underline"; from: [number, number]; to: [number, number]; delay: number; duration?: number };
 
 export const generateTimeline = createServerFn({ method: "POST" })
   .inputValidator((input) => InputSchema.parse(input))
@@ -80,14 +85,14 @@ export const generateTimeline = createServerFn({ method: "POST" })
     };
     const content = json.choices?.[0]?.message?.content ?? "{}";
 
-    let parsed: { title?: string; narration?: string; items?: Item[] };
+    let parsed: { title?: string; narration?: string; items?: GeneratedItem[] };
     try {
       parsed = JSON.parse(content);
     } catch {
       return { error: "AI returned malformed JSON." as const };
     }
 
-    const items = Array.isArray(parsed.items) ? parsed.items : [];
+    const items: GeneratedItem[] = Array.isArray(parsed.items) ? parsed.items : [];
     return {
       title: parsed.title ?? "Untitled",
       narration: parsed.narration ?? "",
