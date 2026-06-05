@@ -45,7 +45,7 @@ export type TimelineItem =
 
 export interface WhiteboardCanvasProps {
   timeline: TimelineItem[];
-  mode?: "marker" | "chalk";
+  mode?: "marker" | "chalk" | "sketch";
   loop?: boolean;
   className?: string;
 }
@@ -120,8 +120,9 @@ export function WhiteboardCanvas({
   className,
 }: WhiteboardCanvasProps) {
   const isChalk = mode === "chalk";
-  const ink = isChalk ? "#f5f5f0" : "#1a1a1a";
-  const bg = isChalk ? "#0f2a1f" : "#fafaf5";
+  const isSketch = mode === "sketch";
+  const ink = isChalk ? "#f5f5f0" : isSketch ? "#1d3557" : "#1a1a1a";
+  const bg = isChalk ? "#0f2a1f" : isSketch ? "#fdf6e3" : "#fafaf5";
   const animKey = useMemo(() => uid(), []);
 
   // For loop: re-mount the timeline on interval
