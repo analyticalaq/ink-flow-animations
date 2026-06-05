@@ -64,6 +64,14 @@ const DEMO: Project = {
 
 type Mode = "marker" | "chalk" | "sketch";
 type Pacing = "slow" | "normal" | "fast";
+type VoiceStyle = "natural" | "energetic" | "calm" | "serious";
+
+const VOICE_STYLES: Record<VoiceStyle, { pitch: number; rateBias: number; label: string }> = {
+  natural: { pitch: 1.0, rateBias: 1.0, label: "Natural" },
+  energetic: { pitch: 1.15, rateBias: 1.08, label: "Energetic" },
+  calm: { pitch: 0.95, rateBias: 0.92, label: "Calm" },
+  serious: { pitch: 0.85, rateBias: 0.95, label: "Serious" },
+};
 
 function StudioPage() {
   const generate = useServerFn(generateTimeline);
@@ -75,17 +83,53 @@ function StudioPage() {
   const [loading, setLoading] = useState(false);
   const [playKey, setPlayKey] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voiceURI, setVoiceURI] = useState<string>("");
+  const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>("natural");
+  // Narration speed multiplier (also scales animation timeline so export stays in sync)
+  const [speed, setSpeed] = useState<number>(1);
 
   const canvasWrapRef = useRef<HTMLDivElement>(null);
 
+  // Load available browser voices
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const load = () => {
+      const list = window.speechSynthesis.getVoices();
+      setVoices(list);
+      if (list.length && !voiceURI) {
+        const preferred =
+          list.find((v) => v.lang.startsWith("en") && v.default) ??
+          list.find((v) => v.lang.startsWith("en")) ??
+          list[0];
+        setVoiceURI(preferred.voiceURI);
+      }
+    };
+    load();
+    window.speechSynthesis.onvoiceschanged = load;
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, [voiceURI]);
+
+  // Scale timeline by speed so the canvas animation matches narration pacing
+  const scaledItems = useMemo<TimelineItem[]>(() => {
+    const f = 1 / speed;
+    return project.items.map((it) => ({
+      ...it,
+      delay: (it.delay ?? 0) * f,
+      duration: (it.duration ?? 1.2) * f,
+    }));
+  }, [project.items, speed]);
+
   const totalDuration = useMemo(() => {
     return (
-      project.items.reduce((m, it) => {
+      scaledItems.reduce((m, it) => {
         const d = (it.delay ?? 0) + (it.duration ?? 1.2);
         return Math.max(m, d);
       }, 0) + 1.5
     );
-  }, [project]);
+  }, [scaledItems]);
 
   async function onGenerate() {
     if (!script.trim()) return;
@@ -119,8 +163,11 @@ function StudioPage() {
     if (!("speechSynthesis" in window) || !project.narration) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(project.narration);
-    u.rate = pacing === "slow" ? 0.85 : pacing === "fast" ? 1.15 : 1;
-    u.pitch = 1;
+    const preset = VOICE_STYLES[voiceStyle];
+    u.rate = Math.max(0.5, Math.min(2, speed * preset.rateBias));
+    u.pitch = preset.pitch;
+    const v = voices.find((x) => x.voiceURI === voiceURI);
+    if (v) u.voice = v;
     window.speechSynthesis.speak(u);
   }
 
@@ -336,6 +383,64 @@ function StudioPage() {
             </div>
           </div>
 
+          <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Voice
+            </p>
+            <div className="space-y-2">
+              <Label className="text-xs">Voice</Label>
+              <Select
+                value={voiceURI}
+                onValueChange={(v) => setVoiceURI(v)}
+                disabled={!voices.length}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={voices.length ? "Pick a voice" : "Loading…"} />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {voices.map((v) => (
+                    <SelectItem key={v.voiceURI} value={v.voiceURI}>
+                      {v.name} — {v.lang}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Voice style</Label>
+              <Select value={voiceStyle} onValueChange={(v) => setVoiceStyle(v as VoiceStyle)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(VOICE_STYLES) as VoiceStyle[]).map((k) => (
+                    <SelectItem key={k} value={k}>{VOICE_STYLES[k].label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Narration speed</Label>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {speed.toFixed(2)}×
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0.5}
+                max={1.5}
+                step={0.05}
+                value={speed}
+                onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                className="w-full accent-primary"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Scales both voice and animation so the exported video stays in sync.
+              </p>
+            </div>
+          </div>
+
           <Button
             onClick={onGenerate}
             disabled={loading || !script.trim()}
@@ -378,7 +483,7 @@ function StudioPage() {
           >
             <WhiteboardCanvas
               key={`${mode}-${playKey}`}
-              timeline={project.items}
+              timeline={scaledItems}
               mode={mode}
             />
           </div>
