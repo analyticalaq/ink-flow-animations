@@ -425,7 +425,7 @@ function StudioPage() {
           >
             <WhiteboardCanvas
               key={`${mode}-${playKey}`}
-              timeline={project.items}
+              timeline={scaledItems}
               mode={mode}
             />
           </div>
