@@ -42,7 +42,25 @@ Rules:
 - Total duration target: 45-90 seconds. Use as many items as needed (typically 30-60).
 - The "narration" field is the spoken script for TTS — write it as a natural flowing voiceover that matches the visual sequence.`;
 
-export type GeneratedItem = Record<string, unknown>;
+export type GeneratedItem = {
+  type: string;
+  content?: string;
+  name?: string;
+  label?: string;
+  x?: number;
+  y?: number;
+  r?: number;
+  size?: number;
+  from?: [number, number];
+  to?: [number, number];
+  curve?: number;
+  align?: "left" | "center" | "right";
+  position?: "bottom-left" | "bottom-right" | "top-right";
+  color?: string;
+  delay?: number;
+  duration?: number;
+  scene?: number;
+};
 
 export const generateTimeline = createServerFn({ method: "POST" })
   .inputValidator((input) => InputSchema.parse(input))
