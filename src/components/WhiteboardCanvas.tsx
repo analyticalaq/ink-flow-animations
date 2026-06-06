@@ -9,15 +9,37 @@ export type TimelineItem =
       delay?: number;
       duration?: number;
       size?: number;
+      scene?: number;
+      color?: string;
+      align?: "left" | "center" | "right";
+    }
+  | {
+      type: "title";
+      content: string;
+      delay?: number;
+      duration?: number;
+      size?: number;
+      scene?: number;
+    }
+  | {
+      type: "caption";
+      content: string;
+      delay?: number;
+      duration?: number;
+      position?: "bottom-left" | "bottom-right" | "top-right";
+      scene?: number;
     }
   | {
       type: "icon";
-      name: "brain" | "bulb" | "box" | "stick" | "chart" | "star";
+      name: IconName;
       x: number;
       y: number;
       delay?: number;
       duration?: number;
       size?: number;
+      label?: string;
+      scene?: number;
+      color?: string;
     }
   | {
       type: "arrow";
@@ -26,6 +48,7 @@ export type TimelineItem =
       delay?: number;
       duration?: number;
       curve?: number;
+      scene?: number;
     }
   | {
       type: "circle";
@@ -34,6 +57,8 @@ export type TimelineItem =
       r: number;
       delay?: number;
       duration?: number;
+      scene?: number;
+      color?: string;
     }
   | {
       type: "underline";
@@ -41,7 +66,15 @@ export type TimelineItem =
       to: [number, number];
       delay?: number;
       duration?: number;
+      scene?: number;
     };
+
+export type IconName =
+  | "brain" | "bulb" | "box" | "stick" | "chart" | "star"
+  | "ship" | "mountain" | "castle" | "mosque" | "crown"
+  | "king" | "queen" | "sword" | "flag" | "tower"
+  | "scroll" | "book" | "sun" | "tree" | "globe"
+  | "scale" | "horse" | "shield" | "gear" | "heart";
 
 export interface WhiteboardCanvasProps {
   timeline: TimelineItem[];
