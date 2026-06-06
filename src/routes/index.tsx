@@ -48,17 +48,31 @@ const STARTER_SCRIPT =
 const DEMO: Project = {
   title: "What is AI?",
   narration:
-    "Artificial intelligence is software that learns patterns from data. Instead of being told every rule, it figures them out by example — like spotting cats in photos after seeing thousands of them.",
+    "Artificial intelligence is software that learns patterns from data. It studies millions of examples, finds the patterns humans miss, and uses what it learned to make smart decisions — from recognizing faces in photos to recommending the next song you'll love.",
   items: [
-    { type: "text", content: "What is AI?", x: 200, y: 200, delay: 0, duration: 1.2, size: 96 },
-    { type: "underline", from: [200, 230], to: [820, 235], delay: 1.3, duration: 0.6 },
-    { type: "icon", name: "brain", x: 600, y: 480, delay: 2.0, duration: 1.4, size: 220 },
-    { type: "arrow", from: [400, 220], to: [540, 430], delay: 3.5, duration: 0.9 },
-    { type: "text", content: "learns from data", x: 850, y: 460, delay: 4.5, duration: 1.0, size: 56 },
-    { type: "icon", name: "chart", x: 1500, y: 460, delay: 5.6, duration: 1.2, size: 200 },
-    { type: "arrow", from: [1180, 460], to: [1400, 460], delay: 6.9, duration: 0.7 },
-    { type: "icon", name: "bulb", x: 1600, y: 850, delay: 8.0, duration: 1.3, size: 220 },
-    { type: "circle", x: 1600, y: 850, r: 180, delay: 9.4, duration: 1.0 },
+    // Scene 0 — title card
+    { type: "title", content: "What is AI?", delay: 0, duration: 1.4, scene: 0 },
+    { type: "icon", name: "brain", x: 960, y: 580, size: 280, label: "thinking machine", delay: 1.6, duration: 1.6, scene: 0 },
+    { type: "caption", content: "an introduction", position: "bottom-left", delay: 3.4, scene: 0 },
+    // Scene 1 — it learns from data
+    { type: "title", content: "It learns from data", delay: 5.5, duration: 1.4, scene: 1 },
+    { type: "icon", name: "chart", x: 400, y: 600, size: 220, label: "data", delay: 7.0, duration: 1.4, scene: 1 },
+    { type: "arrow", from: [560, 600], to: [820, 600], delay: 8.6, duration: 0.8, scene: 1 },
+    { type: "icon", name: "brain", x: 980, y: 600, size: 220, label: "learns", delay: 9.6, duration: 1.4, scene: 1 },
+    { type: "arrow", from: [1140, 600], to: [1400, 600], delay: 11.2, duration: 0.8, scene: 1 },
+    { type: "icon", name: "bulb", x: 1560, y: 600, size: 220, label: "insight", delay: 12.2, duration: 1.4, scene: 1 },
+    // Scene 2 — everyday examples
+    { type: "title", content: "Everywhere already", delay: 15.5, duration: 1.4, scene: 2 },
+    { type: "icon", name: "globe", x: 380, y: 620, size: 230, label: "translate", delay: 17.0, duration: 1.5, scene: 2 },
+    { type: "icon", name: "heart", x: 960, y: 620, size: 220, label: "recommend", delay: 18.8, duration: 1.5, scene: 2 },
+    { type: "icon", name: "shield", x: 1540, y: 620, size: 230, label: "protect", delay: 20.6, duration: 1.5, scene: 2 },
+    { type: "caption", content: "2025", position: "bottom-right", delay: 22.4, scene: 2 },
+    // Scene 3 — the big idea
+    { type: "title", content: "Patterns, not rules", delay: 24.5, duration: 1.4, scene: 3 },
+    { type: "icon", name: "scroll", x: 520, y: 620, size: 240, label: "old way", delay: 26.0, duration: 1.4, scene: 3 },
+    { type: "arrow", from: [700, 620], to: [1100, 620], delay: 27.6, duration: 0.9, scene: 3 },
+    { type: "icon", name: "gear", x: 1300, y: 620, size: 240, label: "new way", delay: 28.7, duration: 1.6, scene: 3 },
+    { type: "circle", x: 1300, y: 620, r: 200, color: "#d94a5c", delay: 30.5, duration: 1.0, scene: 3 },
   ],
 };
 

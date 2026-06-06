@@ -7,37 +7,60 @@ const InputSchema = z.object({
   pacing: z.enum(["slow", "normal", "fast"]).default("normal"),
 });
 
-const SYSTEM_PROMPT = `You are an animation director that converts a short script or topic
-into a hand-drawn whiteboard animation TIMELINE.
+const SYSTEM_PROMPT = `You are an animation director that converts a script or topic
+into a rich, multi-scene HAND-DRAWN WHITEBOARD animation timeline (think LaminaLabs / RSA Animate style).
 
-Output ONLY valid JSON matching this schema (no prose, no markdown fences):
+Output ONLY valid JSON (no prose, no markdown fences):
 {
   "title": string,
-  "narration": string,        // a clean spoken script (1-3 short paragraphs)
-  "items": [
-    { "type": "text",   "content": string, "x": number, "y": number, "size"?: number, "delay": number, "duration"?: number },
-    { "type": "icon",   "name": "brain"|"bulb"|"box"|"stick"|"chart"|"star", "x": number, "y": number, "size"?: number, "delay": number, "duration"?: number },
-    { "type": "arrow",  "from": [number,number], "to": [number,number], "delay": number, "duration"?: number },
-    { "type": "circle", "x": number, "y": number, "r": number, "delay": number, "duration"?: number },
-    { "type": "underline", "from": [number,number], "to": [number,number], "delay": number, "duration"?: number }
-  ]
+  "narration": string,                        // full spoken script, 4-8 short paragraphs
+  "items": [ TimelineItem, ... ]
 }
 
-Rules:
-- Canvas is 1920x1080. Keep all coordinates within 80..1840 x 80..1000.
-- 8-16 items total. Sequence delays in seconds, monotonically increasing, starting at 0.
-- Mix text headings, supporting icons, arrows connecting related ideas, underlines for emphasis, and an occasional highlight circle.
-- Heading text size 80-110, body text size 44-64.
-- Keep text SHORT (1-6 words per text item). Break long sentences into multiple text items.
-- Use arrows to show flow between concepts; coordinates should match the source/target element positions.
-- Total duration should be 15-35 seconds.`;
+TimelineItem variants (ALWAYS include "scene": <integer starting at 0>):
+- { "type": "title",    "content": "...", "delay": n, "duration": 1.2, "scene": s }     // big centered headline at top
+- { "type": "text",     "content": "...", "x": n, "y": n, "size"?: 44-72, "align"?: "left"|"center"|"right", "delay": n, "duration"?: 0.8, "scene": s }
+- { "type": "icon",     "name": IconName, "x": n, "y": n, "size"?: 140-260, "label"?: "short caption", "color"?: "#hex", "delay": n, "duration"?: 1.4, "scene": s }
+- { "type": "arrow",    "from": [x,y], "to": [x,y], "delay": n, "duration"?: 0.8, "scene": s }
+- { "type": "circle",   "x": n, "y": n, "r": n, "delay": n, "duration"?: 1, "scene": s }   // highlight ring
+- { "type": "underline","from": [x,y], "to": [x,y], "delay": n, "duration"?: 0.6, "scene": s }
+- { "type": "caption",  "content": "...", "position"?: "bottom-left"|"bottom-right"|"top-right", "delay": n, "scene": s }   // small corner label (e.g. a year, source)
 
-export type GeneratedItem =
-  | { type: "text"; content: string; x: number; y: number; size?: number; delay: number; duration?: number }
-  | { type: "icon"; name: string; x: number; y: number; size?: number; delay: number; duration?: number }
-  | { type: "arrow"; from: [number, number]; to: [number, number]; delay: number; duration?: number }
-  | { type: "circle"; x: number; y: number; r: number; delay: number; duration?: number }
-  | { type: "underline"; from: [number, number]; to: [number, number]; delay: number; duration?: number };
+IconName values (use these only):
+"brain","bulb","box","stick","chart","star","ship","mountain","castle","mosque","crown",
+"king","queen","sword","flag","tower","scroll","book","sun","tree","globe","scale","horse",
+"shield","gear","heart"
+
+Rules:
+- Canvas is 1920x1080. Keep coordinates within x: 120..1800, y: 240..980. Reserve y < 220 for the title.
+- Build 4-7 SCENES. Each scene is a self-contained visual frame (title + 3-6 supporting elements).
+- For each new scene, start its first item's delay 0.4s after the previous scene ends. The renderer auto-fades the old scene out.
+- Within a scene, sequence delays 0.6-1.5s apart so the viewer can follow each stroke.
+- Each scene should include: one "title" at the top, 2-4 "icon" items (with helpful "label"), optional "arrow"s connecting them, optional "caption" for a date or source.
+- Pick icons that visually match the content (a ship for voyage, mosque for religion, crown for monarchy, chart for data, brain for thinking, etc.).
+- Keep text SHORT: titles 2-6 words, labels 1-4 words.
+- Total duration target: 45-90 seconds. Use as many items as needed (typically 30-60).
+- The "narration" field is the spoken script for TTS — write it as a natural flowing voiceover that matches the visual sequence.`;
+
+export type GeneratedItem = {
+  type: string;
+  content?: string;
+  name?: string;
+  label?: string;
+  x?: number;
+  y?: number;
+  r?: number;
+  size?: number;
+  from?: [number, number];
+  to?: [number, number];
+  curve?: number;
+  align?: "left" | "center" | "right";
+  position?: "bottom-left" | "bottom-right" | "top-right";
+  color?: string;
+  delay?: number;
+  duration?: number;
+  scene?: number;
+};
 
 export const generateTimeline = createServerFn({ method: "POST" })
   .inputValidator((input) => InputSchema.parse(input))
@@ -49,10 +72,10 @@ export const generateTimeline = createServerFn({ method: "POST" })
 
     const pacingHint =
       data.pacing === "slow"
-        ? "Use generous delays (1.5-2.5s between items)."
+        ? "Use generous delays (1.4-2.2s between items) and longer scenes."
         : data.pacing === "fast"
-        ? "Use tight delays (0.5-1s between items)."
-        : "Use moderate delays (~1-1.5s between items).";
+        ? "Use tight delays (0.5-1s between items) and snappier scenes."
+        : "Use moderate delays (~0.9-1.5s between items).";
 
     const userPrompt = `Style: ${data.style}. ${pacingHint}\n\nSCRIPT / TOPIC:\n${data.script}`;
 
