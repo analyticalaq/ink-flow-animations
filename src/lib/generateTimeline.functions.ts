@@ -29,17 +29,21 @@ TimelineItem variants (ALWAYS include "scene": <integer starting at 0>):
 IconName values (use these only):
 "brain","bulb","box","stick","chart","star","ship","mountain","castle","mosque","crown",
 "king","queen","sword","flag","tower","scroll","book","sun","tree","globe","scale","horse",
-"shield","gear","heart"
+"shield","gear","heart","rocket","computer","person","money","clock","target","document",
+"megaphone","cloud","phone","robot","leaf","fire","lock","key","chat","checkmark","cross",
+"question","house","car","graph","pencil","camera","music"
 
 Rules:
 - Canvas is 1920x1080. Keep coordinates within x: 120..1800, y: 240..980. Reserve y < 220 for the title.
-- Build 4-7 SCENES. Each scene is a self-contained visual frame (title + 3-6 supporting elements).
-- For each new scene, start its first item's delay 0.4s after the previous scene ends. The renderer auto-fades the old scene out.
-- Within a scene, sequence delays 0.6-1.5s apart so the viewer can follow each stroke.
-- Each scene should include: one "title" at the top, 2-4 "icon" items (with helpful "label"), optional "arrow"s connecting them, optional "caption" for a date or source.
-- Pick icons that visually match the content (a ship for voyage, mosque for religion, crown for monarchy, chart for data, brain for thinking, etc.).
-- Keep text SHORT: titles 2-6 words, labels 1-4 words.
-- Total duration target: 45-90 seconds. Use as many items as needed (typically 30-60).
+- Build 6-10 SCENES. Each scene is a self-contained visual frame lasting 8-14 seconds with a title + 4-7 supporting elements.
+- For each new scene, start its first item's delay 0.6s after the previous scene ends. The renderer auto-fades the old scene out.
+- Within a scene, sequence delays 1.0-2.0s apart so the viewer can comfortably follow each stroke (smoother pacing).
+- Each scene MUST include: one "title" at the top, AT LEAST 3 "icon" items (with helpful "label") forming a simple 2D illustration of the concept, 1-2 "arrow"s connecting related icons, 1-2 short "text" callouts, and optionally a "caption" with a date or source.
+- Use icons liberally — every key noun in the narration should be represented by an icon. Compose multiple icons together to illustrate scenes (e.g. person + computer + bulb = "developer has an idea"; rocket + chart + target = "growth strategy"; cloud + phone + lock = "secure mobile sync").
+- Vary icon sizes (140-240) and positions to create visually rich, balanced compositions — not just a row of icons.
+- Pick icons that visually match the content. Prefer the modern 2D illustration icons (rocket, computer, person, robot, chart, graph, money, target, lightbulb, etc.) for tech/business/everyday topics, and the historical icons (ship, castle, mosque, crown, sword) only for historical topics.
+- Keep text SHORT: titles 2-6 words, labels 1-4 words, text callouts under 8 words.
+- Total duration target: 60-120 seconds. Use as many items as needed (typically 50-90). Verify the last item's (delay + duration) is between 60 and 120.
 - The "narration" field is the spoken script for TTS — write it as a natural flowing voiceover that matches the visual sequence.`;
 
 export type GeneratedItem = {
@@ -72,10 +76,10 @@ export const generateTimeline = createServerFn({ method: "POST" })
 
     const pacingHint =
       data.pacing === "slow"
-        ? "Use generous delays (1.4-2.2s between items) and longer scenes."
+        ? "Use generous delays (1.8-2.8s between items) and longer scenes (12-16s each). Target ~110-120s total."
         : data.pacing === "fast"
-        ? "Use tight delays (0.5-1s between items) and snappier scenes."
-        : "Use moderate delays (~0.9-1.5s between items).";
+        ? "Use tight delays (0.8-1.4s between items) and snappier scenes (7-10s each). Target ~60-75s total."
+        : "Use moderate delays (~1.2-1.8s between items) and balanced scenes (10-12s each). Target ~80-100s total.";
 
     const userPrompt = `Style: ${data.style}. ${pacingHint}\n\nSCRIPT / TOPIC:\n${data.script}`;
 
