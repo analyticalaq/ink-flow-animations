@@ -5,7 +5,12 @@ export type IconName =
   | "ship" | "mountain" | "castle" | "mosque" | "crown"
   | "king" | "queen" | "sword" | "flag" | "tower"
   | "scroll" | "book" | "sun" | "tree" | "globe"
-  | "scale" | "horse" | "shield" | "gear" | "heart";
+  | "scale" | "horse" | "shield" | "gear" | "heart"
+  | "rocket" | "computer" | "person" | "money" | "clock"
+  | "target" | "document" | "megaphone" | "cloud" | "phone"
+  | "robot" | "leaf" | "fire" | "lock" | "key" | "chat"
+  | "checkmark" | "cross" | "question" | "house" | "car"
+  | "graph" | "pencil" | "camera" | "music";
 
 export type TimelineItem =
   | {
@@ -118,6 +123,31 @@ const ICON_COLORS: Record<string, string> = {
   stick: "#1a1a1a",
   chart: "#4a90c4",
   star: "#f2b134",
+  rocket: "#e85d3a",
+  computer: "#5b6b7d",
+  person: "#4a90c4",
+  money: "#3d8a4a",
+  clock: "#e88aab",
+  target: "#d94a5c",
+  document: "#f5f5f0",
+  megaphone: "#f2b134",
+  cloud: "#a8c5dc",
+  phone: "#3d8a4a",
+  robot: "#6b8caf",
+  leaf: "#3d8a4a",
+  fire: "#e85d3a",
+  lock: "#7a7f87",
+  key: "#e8b54a",
+  chat: "#4a90c4",
+  checkmark: "#3d8a4a",
+  cross: "#d94a5c",
+  question: "#8d4ea0",
+  house: "#c97b63",
+  car: "#d94a5c",
+  graph: "#4a90c4",
+  pencil: "#f2b134",
+  camera: "#5b6b7d",
+  music: "#8d4ea0",
 };
 
 // Returns an array of "parts" (filled shape, stroked path, etc.)
