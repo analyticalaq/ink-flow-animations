@@ -45,7 +45,7 @@ Rules:
 - Vary icon sizes (140-240) and positions to create visually rich, balanced compositions — not just a row of icons.
 - Pick icons that visually match the content. Prefer the modern 2D illustration icons (rocket, computer, person, robot, chart, graph, money, target, lightbulb, etc.) for tech/business/everyday topics, and the historical icons (ship, castle, mosque, crown, sword) only for historical topics.
 - Keep text SHORT: titles 2-6 words, labels 1-4 words, text callouts under 8 words.
-- Total duration target: 60-120 seconds. Use as many items as needed (typically 50-90). Verify the last item's (delay + duration) is between 60 and 120.
+- Total duration is specified per request (see user message). Use as many items as needed to fill that duration. Verify the last item's (delay + duration) matches the requested target window.
 - The "narration" field is the spoken script for TTS — write it as a natural flowing voiceover that matches the visual sequence.`;
 
 export type GeneratedItem = {
