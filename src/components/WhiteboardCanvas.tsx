@@ -10,7 +10,13 @@ export type IconName =
   | "target" | "document" | "megaphone" | "cloud" | "phone"
   | "robot" | "leaf" | "fire" | "lock" | "key" | "chat"
   | "checkmark" | "cross" | "question" | "house" | "car"
-  | "graph" | "pencil" | "camera" | "music";
+  | "graph" | "pencil" | "camera" | "music"
+  | "mail" | "calendar" | "search" | "settings" | "trophy"
+  | "gift" | "bag" | "cart" | "bell" | "users"
+  | "puzzle" | "plane" | "bolt" | "moon" | "coffee"
+  | "smile" | "atom" | "flask" | "magnet" | "wand"
+  | "battery" | "wifi" | "droplet" | "snowflake" | "umbrella"
+  | "pizza" | "bicycle" | "factory" | "school" | "hospital";
 
 export type TimelineItem =
   | {
