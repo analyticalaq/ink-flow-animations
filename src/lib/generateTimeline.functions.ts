@@ -33,7 +33,10 @@ IconName values (use these only):
 "king","queen","sword","flag","tower","scroll","book","sun","tree","globe","scale","horse",
 "shield","gear","heart","rocket","computer","person","money","clock","target","document",
 "megaphone","cloud","phone","robot","leaf","fire","lock","key","chat","checkmark","cross",
-"question","house","car","graph","pencil","camera","music"
+"question","house","car","graph","pencil","camera","music",
+"mail","calendar","search","settings","trophy","gift","bag","cart","bell","users",
+"puzzle","plane","bolt","moon","coffee","smile","atom","flask","magnet","wand",
+"battery","wifi","droplet","snowflake","umbrella","pizza","bicycle","factory","school","hospital"
 
 Rules:
 - Canvas is 1920x1080. Keep coordinates within x: 120..1800, y: 240..980. Reserve y < 220 for the title.
@@ -43,7 +46,18 @@ Rules:
 - Each scene MUST include: one "title" at the top, AT LEAST 3 "icon" items (with helpful "label") forming a simple 2D illustration of the concept, 1-2 "arrow"s connecting related icons, 1-2 short "text" callouts, and optionally a "caption" with a date or source.
 - Use icons liberally — every key noun in the narration should be represented by an icon. Compose multiple icons together to illustrate scenes (e.g. person + computer + bulb = "developer has an idea"; rocket + chart + target = "growth strategy"; cloud + phone + lock = "secure mobile sync").
 - Vary icon sizes (140-240) and positions to create visually rich, balanced compositions — not just a row of icons.
-- Pick icons that visually match the content. Prefer the modern 2D illustration icons (rocket, computer, person, robot, chart, graph, money, target, lightbulb, etc.) for tech/business/everyday topics, and the historical icons (ship, castle, mosque, crown, sword) only for historical topics.
+- Pick icons that visually match the content of the script. Every key noun, verb, or concept must map to the closest icon from the list. Use the topic to guide selection:
+  • Tech/AI/software → robot, computer, brain, atom, bolt, gear, cloud, wifi, code (use document), chart
+  • Business/startup → rocket, target, money, chart, graph, trophy, users, megaphone, bag, briefcase (use bag)
+  • Education/learning → school, book, pencil, bulb, brain, scroll, document, question
+  • Health/medical → hospital, heart, flask, droplet, smile, person
+  • Travel/transport → plane, car, ship, bicycle, globe, mountain, sun, umbrella
+  • Daily life → coffee, pizza, house, gift, calendar, clock, phone, mail, music, camera, bell, cart
+  • Science → atom, flask, magnet, bolt, droplet, leaf, snowflake, moon, sun, globe
+  • Security/privacy → lock, key, shield, checkmark, cross
+  • Communication → chat, mail, megaphone, phone, bell, wifi
+  • History/culture → ship, castle, mosque, crown, king, queen, sword, scroll, horse, tower, flag
+  Avoid using historical icons for modern topics and vice-versa.
 - Keep text SHORT: titles 2-6 words, labels 1-4 words, text callouts under 8 words.
 - Total duration is specified per request (see user message). Use as many items as needed to fill that duration. Verify the last item's (delay + duration) matches the requested target window.
 - The "narration" field is the spoken script for TTS — write it as a natural flowing voiceover that matches the visual sequence.`;
