@@ -419,6 +419,30 @@ function StudioPage() {
             </div>
           </div>
 
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Video length</Label>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {durationMinutes} min
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(parseInt(e.target.value, 10))}
+              className="w-full accent-primary"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>1m</span><span>5m</span><span>10m</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              The AI scales scenes, items, and narration to fit the target length.
+            </p>
+          </div>
+
           <div className="space-y-3 rounded-md border bg-muted/30 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Voice
