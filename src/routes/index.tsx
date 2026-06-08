@@ -92,6 +92,7 @@ function StudioPage() {
   const [script, setScript] = useState(STARTER_SCRIPT);
   const [style, setStyle] = useState<"explainer" | "story" | "lecture" | "pitch">("explainer");
   const [pacing, setPacing] = useState<Pacing>("normal");
+  const [durationMinutes, setDurationMinutes] = useState<number>(2);
   const [mode, setMode] = useState<Mode>("marker");
   const [project, setProject] = useState<Project>(DEMO);
   const [loading, setLoading] = useState(false);
@@ -104,6 +105,27 @@ function StudioPage() {
   const [speed, setSpeed] = useState<number>(1);
 
   const canvasWrapRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  async function toggleFullscreen() {
+    const el = canvasWrapRef.current;
+    if (!el) return;
+    try {
+      if (!document.fullscreenElement) {
+        await el.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (e) {
+      console.warn("Fullscreen failed", e);
+    }
+  }
 
   // Load available browser voices
   useEffect(() => {
@@ -150,6 +172,7 @@ function StudioPage() {
     setLoading(true);
     try {
       const res = await generate({ data: { script, style, pacing } });
+      // include the requested target duration
       if ("error" in res && res.error) {
         toast.error(res.error);
         return;
