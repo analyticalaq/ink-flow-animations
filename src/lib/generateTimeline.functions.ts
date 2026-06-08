@@ -5,6 +5,8 @@ const InputSchema = z.object({
   script: z.string().min(5).max(8000),
   style: z.enum(["explainer", "story", "lecture", "pitch"]).default("explainer"),
   pacing: z.enum(["slow", "normal", "fast"]).default("normal"),
+  /** Target video length in minutes (1-10). The AI will scale scene count and pacing accordingly. */
+  durationMinutes: z.number().min(1).max(10).default(2),
 });
 
 const SYSTEM_PROMPT = `You are an animation director that converts a script or topic
@@ -43,7 +45,7 @@ Rules:
 - Vary icon sizes (140-240) and positions to create visually rich, balanced compositions — not just a row of icons.
 - Pick icons that visually match the content. Prefer the modern 2D illustration icons (rocket, computer, person, robot, chart, graph, money, target, lightbulb, etc.) for tech/business/everyday topics, and the historical icons (ship, castle, mosque, crown, sword) only for historical topics.
 - Keep text SHORT: titles 2-6 words, labels 1-4 words, text callouts under 8 words.
-- Total duration target: 60-120 seconds. Use as many items as needed (typically 50-90). Verify the last item's (delay + duration) is between 60 and 120.
+- Total duration is specified per request (see user message). Use as many items as needed to fill that duration. Verify the last item's (delay + duration) matches the requested target window.
 - The "narration" field is the spoken script for TTS — write it as a natural flowing voiceover that matches the visual sequence.`;
 
 export type GeneratedItem = {
@@ -74,14 +76,26 @@ export const generateTimeline = createServerFn({ method: "POST" })
       return { error: "AI Gateway not configured." as const };
     }
 
+    const targetSeconds = Math.round(data.durationMinutes * 60);
+    const minSec = Math.round(targetSeconds * 0.9);
+    const maxSec = Math.round(targetSeconds * 1.1);
+    // Scale scenes and item counts with duration. ~10s per scene baseline.
+    const sceneCount = Math.max(3, Math.round(targetSeconds / 10));
+    const minScenes = Math.max(3, sceneCount - 2);
+    const maxScenes = sceneCount + 2;
+    const itemMin = Math.max(20, Math.round(targetSeconds * 0.8));
+    const itemMax = Math.round(targetSeconds * 1.4);
+
     const pacingHint =
       data.pacing === "slow"
-        ? "Use generous delays (1.8-2.8s between items) and longer scenes (12-16s each). Target ~110-120s total."
+        ? "Use generous delays (1.8-2.8s between items) and longer scenes (12-16s each)."
         : data.pacing === "fast"
-        ? "Use tight delays (0.8-1.4s between items) and snappier scenes (7-10s each). Target ~60-75s total."
-        : "Use moderate delays (~1.2-1.8s between items) and balanced scenes (10-12s each). Target ~80-100s total.";
+        ? "Use tight delays (0.8-1.4s between items) and snappier scenes (7-10s each)."
+        : "Use moderate delays (~1.2-1.8s between items) and balanced scenes (10-12s each).";
 
-    const userPrompt = `Style: ${data.style}. ${pacingHint}\n\nSCRIPT / TOPIC:\n${data.script}`;
+    const durationHint = `TARGET TOTAL DURATION: ${targetSeconds} seconds (${data.durationMinutes} minute${data.durationMinutes === 1 ? "" : "s"}). The last item's (delay + duration) MUST be between ${minSec} and ${maxSec}. Build ${minScenes}-${maxScenes} scenes. Produce ${itemMin}-${itemMax} total items. Expand the narration to fill the full duration with rich detail, examples, and transitions.`;
+
+    const userPrompt = `Style: ${data.style}. ${pacingHint}\n${durationHint}\n\nSCRIPT / TOPIC:\n${data.script}`;
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

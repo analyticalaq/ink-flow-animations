@@ -92,6 +92,7 @@ function StudioPage() {
   const [script, setScript] = useState(STARTER_SCRIPT);
   const [style, setStyle] = useState<"explainer" | "story" | "lecture" | "pitch">("explainer");
   const [pacing, setPacing] = useState<Pacing>("normal");
+  const [durationMinutes, setDurationMinutes] = useState<number>(2);
   const [mode, setMode] = useState<Mode>("marker");
   const [project, setProject] = useState<Project>(DEMO);
   const [loading, setLoading] = useState(false);
@@ -104,6 +105,27 @@ function StudioPage() {
   const [speed, setSpeed] = useState<number>(1);
 
   const canvasWrapRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  async function toggleFullscreen() {
+    const el = canvasWrapRef.current;
+    if (!el) return;
+    try {
+      if (!document.fullscreenElement) {
+        await el.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (e) {
+      console.warn("Fullscreen failed", e);
+    }
+  }
 
   // Load available browser voices
   useEffect(() => {
@@ -149,7 +171,7 @@ function StudioPage() {
     if (!script.trim()) return;
     setLoading(true);
     try {
-      const res = await generate({ data: { script, style, pacing } });
+      const res = await generate({ data: { script, style, pacing, durationMinutes } });
       if ("error" in res && res.error) {
         toast.error(res.error);
         return;
@@ -397,6 +419,30 @@ function StudioPage() {
             </div>
           </div>
 
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Video length</Label>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {durationMinutes} min
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(parseInt(e.target.value, 10))}
+              className="w-full accent-primary"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>1m</span><span>5m</span><span>10m</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              The AI scales scenes, items, and narration to fit the target length.
+            </p>
+          </div>
+
           <div className="space-y-3 rounded-md border bg-muted/30 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Voice
@@ -493,13 +539,32 @@ function StudioPage() {
           </div>
           <div
             ref={canvasWrapRef}
-            className="aspect-[16/9] w-full overflow-hidden rounded-lg border shadow-sm"
+            className={`relative w-full overflow-hidden rounded-lg border shadow-sm ${
+              isFullscreen ? "h-screen bg-background" : "aspect-[16/9]"
+            }`}
           >
             <WhiteboardCanvas
               key={`${mode}-${playKey}`}
               timeline={scaledItems}
               mode={mode}
             />
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? "Exit fullscreen" : "Maximize"}
+              title={isFullscreen ? "Exit fullscreen (Esc)" : "Maximize"}
+              className="absolute right-3 top-3 z-10 rounded-md border border-border/40 bg-background/70 p-2 text-foreground shadow-sm backdrop-blur transition-colors hover:bg-background"
+            >
+              {isFullscreen ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21v-6H3M15 3v6h6M3 9h6V3M21 15h-6v6" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
+                </svg>
+              )}
+            </button>
           </div>
         </section>
       </main>
