@@ -539,13 +539,32 @@ function StudioPage() {
           </div>
           <div
             ref={canvasWrapRef}
-            className="aspect-[16/9] w-full overflow-hidden rounded-lg border shadow-sm"
+            className={`relative w-full overflow-hidden rounded-lg border shadow-sm ${
+              isFullscreen ? "h-screen bg-background" : "aspect-[16/9]"
+            }`}
           >
             <WhiteboardCanvas
               key={`${mode}-${playKey}`}
               timeline={scaledItems}
               mode={mode}
             />
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? "Exit fullscreen" : "Maximize"}
+              title={isFullscreen ? "Exit fullscreen (Esc)" : "Maximize"}
+              className="absolute right-3 top-3 z-10 rounded-md border border-border/40 bg-background/70 p-2 text-foreground shadow-sm backdrop-blur transition-colors hover:bg-background"
+            >
+              {isFullscreen ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21v-6H3M15 3v6h6M3 9h6V3M21 15h-6v6" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
+                </svg>
+              )}
+            </button>
           </div>
         </section>
       </main>
