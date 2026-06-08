@@ -10,7 +10,13 @@ export type IconName =
   | "target" | "document" | "megaphone" | "cloud" | "phone"
   | "robot" | "leaf" | "fire" | "lock" | "key" | "chat"
   | "checkmark" | "cross" | "question" | "house" | "car"
-  | "graph" | "pencil" | "camera" | "music";
+  | "graph" | "pencil" | "camera" | "music"
+  | "mail" | "calendar" | "search" | "settings" | "trophy"
+  | "gift" | "bag" | "cart" | "bell" | "users"
+  | "puzzle" | "plane" | "bolt" | "moon" | "coffee"
+  | "smile" | "atom" | "flask" | "magnet" | "wand"
+  | "battery" | "wifi" | "droplet" | "snowflake" | "umbrella"
+  | "pizza" | "bicycle" | "factory" | "school" | "hospital";
 
 export type TimelineItem =
   | {
@@ -148,6 +154,36 @@ const ICON_COLORS: Record<string, string> = {
   pencil: "#f2b134",
   camera: "#5b6b7d",
   music: "#8d4ea0",
+  mail: "#4a90c4",
+  calendar: "#d94a5c",
+  search: "#5b6b7d",
+  settings: "#7a7f87",
+  trophy: "#e8b54a",
+  gift: "#d94a5c",
+  bag: "#7b4a2a",
+  cart: "#3d8a4a",
+  bell: "#f2b134",
+  users: "#4a90c4",
+  puzzle: "#8d4ea0",
+  plane: "#5b6b7d",
+  bolt: "#f2c94c",
+  moon: "#a8c5dc",
+  coffee: "#7b4a2a",
+  smile: "#f2b134",
+  atom: "#4a90c4",
+  flask: "#3aa57a",
+  magnet: "#d94a5c",
+  wand: "#8d4ea0",
+  battery: "#3d8a4a",
+  wifi: "#4a90c4",
+  droplet: "#4a90c4",
+  snowflake: "#a8c5dc",
+  umbrella: "#d94a5c",
+  pizza: "#e85d3a",
+  bicycle: "#5b6b7d",
+  factory: "#7a7f87",
+  school: "#c97b63",
+  hospital: "#d94a5c",
 };
 
 // Returns an array of "parts" (filled shape, stroked path, etc.)
@@ -432,6 +468,173 @@ function iconParts(name: IconName, size: number, color: string, ink: string): Ic
         { kind: "stroke", d: `M ${-s*0.2} ${s*0.3} L ${-s*0.2} ${-s*0.45} L ${s*0.3} ${-s*0.5} L ${s*0.3} ${s*0.2}`, width: 6 },
         { kind: "fill", d: `M ${-s*0.3} ${s*0.3} a ${s*0.12} ${s*0.1} 0 1 0 ${s*0.2} 0 a ${s*0.12} ${s*0.1} 0 1 0 ${-s*0.2} 0 Z`, fill: color },
         { kind: "fill", d: `M ${s*0.2} ${s*0.2} a ${s*0.12} ${s*0.1} 0 1 0 ${s*0.2} 0 a ${s*0.12} ${s*0.1} 0 1 0 ${-s*0.2} 0 Z`, fill: color },
+      ];
+    case "mail":
+      return [
+        { kind: "fill", d: `M ${-s*0.45} ${-s*0.3} L ${s*0.45} ${-s*0.3} L ${s*0.45} ${s*0.3} L ${-s*0.45} ${s*0.3} Z`, fill: color },
+        { kind: "stroke", d: `M ${-s*0.45} ${-s*0.3} L 0 ${s*0.05} L ${s*0.45} ${-s*0.3}`, stroke: "#fafaf5", width: 5 },
+      ];
+    case "calendar":
+      return [
+        { kind: "fill", d: `M ${-s*0.45} ${-s*0.35} L ${s*0.45} ${-s*0.35} L ${s*0.45} ${s*0.45} L ${-s*0.45} ${s*0.45} Z`, fill: "#fafaf5", stroke: ink },
+        { kind: "fill", d: `M ${-s*0.45} ${-s*0.35} L ${s*0.45} ${-s*0.35} L ${s*0.45} ${-s*0.15} L ${-s*0.45} ${-s*0.15} Z`, fill: color },
+        { kind: "stroke", d: `M ${-s*0.3} ${-s*0.45} L ${-s*0.3} ${-s*0.25} M ${s*0.3} ${-s*0.45} L ${s*0.3} ${-s*0.25}`, width: 5 },
+      ];
+    case "search":
+      return [
+        { kind: "stroke", d: `M ${-s*0.1} ${-s*0.1} a ${s*0.25} ${s*0.25} 0 1 0 0.01 0 Z`, stroke: color, width: 6 },
+        { kind: "stroke", d: `M ${s*0.15} ${s*0.15} L ${s*0.4} ${s*0.4}`, stroke: color, width: 8 },
+      ];
+    case "settings":
+      return [
+        { kind: "fill", d: `M 0 ${-s*0.45} L ${s*0.1} ${-s*0.4} L ${s*0.18} ${-s*0.42} L ${s*0.22} ${-s*0.3} L ${s*0.35} ${-s*0.25} L ${s*0.32} ${-s*0.12} L ${s*0.42} 0 L ${s*0.32} ${s*0.12} L ${s*0.35} ${s*0.25} L ${s*0.22} ${s*0.3} L ${s*0.18} ${s*0.42} L ${s*0.1} ${s*0.4} L 0 ${s*0.45} L ${-s*0.1} ${s*0.4} L ${-s*0.18} ${s*0.42} L ${-s*0.22} ${s*0.3} L ${-s*0.35} ${s*0.25} L ${-s*0.32} ${s*0.12} L ${-s*0.42} 0 L ${-s*0.32} ${-s*0.12} L ${-s*0.35} ${-s*0.25} L ${-s*0.22} ${-s*0.3} L ${-s*0.18} ${-s*0.42} L ${-s*0.1} ${-s*0.4} Z`, fill: color },
+        { kind: "fill", d: `M 0 ${-s*0.12} a ${s*0.12} ${s*0.12} 0 1 0 0.01 0 Z`, fill: "#fafaf5" },
+      ];
+    case "trophy":
+      return [
+        { kind: "fill", d: `M ${-s*0.3} ${-s*0.4} L ${s*0.3} ${-s*0.4} L ${s*0.3} ${-s*0.1} Q 0 ${s*0.25} ${-s*0.3} ${-s*0.1} Z`, fill: color },
+        { kind: "stroke", d: `M ${-s*0.3} ${-s*0.3} L ${-s*0.5} ${-s*0.3} L ${-s*0.5} ${-s*0.05} L ${-s*0.3} ${-s*0.05} M ${s*0.3} ${-s*0.3} L ${s*0.5} ${-s*0.3} L ${s*0.5} ${-s*0.05} L ${s*0.3} ${-s*0.05}`, width: 5 },
+        { kind: "fill", d: `M ${-s*0.15} ${s*0.15} L ${s*0.15} ${s*0.15} L ${s*0.2} ${s*0.45} L ${-s*0.2} ${s*0.45} Z`, fill: color },
+      ];
+    case "gift":
+      return [
+        { kind: "fill", d: `M ${-s*0.45} ${-s*0.15} L ${s*0.45} ${-s*0.15} L ${s*0.45} ${s*0.45} L ${-s*0.45} ${s*0.45} Z`, fill: color },
+        { kind: "fill", d: `M ${-s*0.05} ${-s*0.15} L ${s*0.05} ${-s*0.15} L ${s*0.05} ${s*0.45} L ${-s*0.05} ${s*0.45} Z`, fill: "#e8b54a" },
+        { kind: "fill", d: `M ${-s*0.45} ${-s*0.15} L ${s*0.45} ${-s*0.15} L ${s*0.45} 0 L ${-s*0.45} 0 Z`, fill: "#e8b54a" },
+        { kind: "stroke", d: `M 0 ${-s*0.15} Q ${-s*0.25} ${-s*0.4} ${-s*0.1} ${-s*0.45} Q ${s*0.05} ${-s*0.4} 0 ${-s*0.15} Q ${s*0.25} ${-s*0.4} ${s*0.1} ${-s*0.45} Q ${-s*0.05} ${-s*0.4} 0 ${-s*0.15}`, stroke: "#e8b54a", width: 5 },
+      ];
+    case "bag":
+      return [
+        { kind: "stroke", d: `M ${-s*0.18} ${-s*0.1} L ${-s*0.18} ${-s*0.3} a ${s*0.18} ${s*0.18} 0 1 1 ${s*0.36} 0 L ${s*0.18} ${-s*0.1}`, width: 5 },
+        { kind: "fill", d: `M ${-s*0.35} ${-s*0.1} L ${s*0.35} ${-s*0.1} L ${s*0.4} ${s*0.45} L ${-s*0.4} ${s*0.45} Z`, fill: color },
+      ];
+    case "cart":
+      return [
+        { kind: "stroke", d: `M ${-s*0.5} ${-s*0.3} L ${-s*0.3} ${-s*0.3} L ${-s*0.15} ${s*0.25} L ${s*0.35} ${s*0.25}`, width: 5 },
+        { kind: "fill", d: `M ${-s*0.25} ${-s*0.15} L ${s*0.4} ${-s*0.15} L ${s*0.3} ${s*0.15} L ${-s*0.18} ${s*0.15} Z`, fill: color },
+        { kind: "fill", d: `M ${-s*0.1} ${s*0.4} a ${s*0.06} ${s*0.06} 0 1 0 0.01 0 Z`, fill: ink },
+        { kind: "fill", d: `M ${s*0.3} ${s*0.4} a ${s*0.06} ${s*0.06} 0 1 0 0.01 0 Z`, fill: ink },
+      ];
+    case "bell":
+      return [
+        { kind: "fill", d: `M 0 ${-s*0.45} Q ${s*0.35} ${-s*0.45} ${s*0.35} ${-s*0.05} L ${s*0.4} ${s*0.2} L ${-s*0.4} ${s*0.2} L ${-s*0.35} ${-s*0.05} Q ${-s*0.35} ${-s*0.45} 0 ${-s*0.45} Z`, fill: color },
+        { kind: "fill", d: `M ${-s*0.08} ${s*0.2} L ${s*0.08} ${s*0.2} L ${s*0.05} ${s*0.4} L ${-s*0.05} ${s*0.4} Z`, fill: color },
+      ];
+    case "users":
+      return [
+        { kind: "fill", d: `M ${-s*0.2} ${-s*0.15} a ${s*0.14} ${s*0.14} 0 1 0 0.01 0 Z`, fill: "#f5d6b0" },
+        { kind: "fill", d: `M ${s*0.2} ${-s*0.15} a ${s*0.14} ${s*0.14} 0 1 0 0.01 0 Z`, fill: "#f5d6b0" },
+        { kind: "fill", d: `M ${-s*0.45} ${s*0.45} Q ${-s*0.45} ${s*0.05} ${-s*0.2} ${s*0.05} Q ${s*0.05} ${s*0.05} ${s*0.05} ${s*0.45} Z`, fill: color },
+        { kind: "fill", d: `M ${-s*0.05} ${s*0.45} Q ${-s*0.05} ${s*0.05} ${s*0.2} ${s*0.05} Q ${s*0.45} ${s*0.05} ${s*0.45} ${s*0.45} Z`, fill: color },
+      ];
+    case "puzzle":
+      return [
+        { kind: "fill", d: `M ${-s*0.4} ${-s*0.4} L ${-s*0.05} ${-s*0.4} Q ${-s*0.05} ${-s*0.55} ${s*0.1} ${-s*0.55} Q ${s*0.25} ${-s*0.55} ${s*0.25} ${-s*0.4} L ${s*0.4} ${-s*0.4} L ${s*0.4} ${-s*0.05} Q ${s*0.55} ${-s*0.05} ${s*0.55} ${s*0.1} Q ${s*0.55} ${s*0.25} ${s*0.4} ${s*0.25} L ${s*0.4} ${s*0.4} L ${-s*0.4} ${s*0.4} Z`, fill: color },
+      ];
+    case "plane":
+      return [
+        { kind: "fill", d: `M ${-s*0.5} ${s*0.05} L ${s*0.1} ${-s*0.25} L ${s*0.5} ${-s*0.4} L ${s*0.45} ${-s*0.1} L ${s*0.0} ${s*0.05} L ${-s*0.15} ${s*0.3} L ${-s*0.3} ${s*0.3} L ${-s*0.25} ${s*0.1} L ${-s*0.4} ${s*0.15} L ${-s*0.45} ${s*0.3} L ${-s*0.55} ${s*0.25} Z`, fill: color },
+      ];
+    case "bolt":
+      return [
+        { kind: "fill", d: `M ${-s*0.1} ${-s*0.5} L ${s*0.25} ${-s*0.5} L ${s*0.05} ${-s*0.05} L ${s*0.3} ${-s*0.05} L ${-s*0.15} ${s*0.5} L ${0} ${s*0.1} L ${-s*0.25} ${s*0.1} Z`, fill: color },
+      ];
+    case "moon":
+      return [
+        { kind: "fill", d: `M ${s*0.15} ${-s*0.45} a ${s*0.45} ${s*0.45} 0 1 0 0 ${s*0.9} a ${s*0.35} ${s*0.35} 0 1 1 0 ${-s*0.9} Z`, fill: color },
+      ];
+    case "coffee":
+      return [
+        { kind: "fill", d: `M ${-s*0.35} ${-s*0.2} L ${s*0.3} ${-s*0.2} L ${s*0.25} ${s*0.35} L ${-s*0.3} ${s*0.35} Z`, fill: color },
+        { kind: "stroke", d: `M ${s*0.3} ${-s*0.05} Q ${s*0.55} ${-s*0.05} ${s*0.5} ${s*0.15} Q ${s*0.45} ${s*0.25} ${s*0.28} ${s*0.2}`, width: 5 },
+        { kind: "stroke", d: `M ${-s*0.15} ${-s*0.35} q ${s*0.1} ${-s*0.1} 0 ${-s*0.2} M ${s*0.05} ${-s*0.35} q ${s*0.1} ${-s*0.1} 0 ${-s*0.2}`, width: 4 },
+      ];
+    case "smile":
+      return [
+        { kind: "fill", d: `M 0 ${-s*0.45} a ${s*0.45} ${s*0.45} 0 1 0 0.01 0 Z`, fill: color },
+        { kind: "fill", d: `M ${-s*0.18} ${-s*0.1} a ${s*0.05} ${s*0.05} 0 1 0 0.01 0 Z`, fill: ink },
+        { kind: "fill", d: `M ${s*0.18} ${-s*0.1} a ${s*0.05} ${s*0.05} 0 1 0 0.01 0 Z`, fill: ink },
+        { kind: "stroke", d: `M ${-s*0.2} ${s*0.1} q ${s*0.2} ${s*0.2} ${s*0.4} 0`, stroke: ink, width: 5 },
+      ];
+    case "atom":
+      return [
+        { kind: "fill", d: `M 0 0 a ${s*0.08} ${s*0.08} 0 1 0 0.01 0 Z`, fill: color },
+        { kind: "stroke", d: `M 0 0 a ${s*0.45} ${s*0.18} 0 1 0 0.01 0 Z`, stroke: color, width: 4 },
+        { kind: "stroke", d: `M 0 0 a ${s*0.45} ${s*0.18} 30 1 0 0.01 0 Z`, stroke: color, width: 4 },
+        { kind: "stroke", d: `M 0 0 a ${s*0.45} ${s*0.18} -30 1 0 0.01 0 Z`, stroke: color, width: 4 },
+      ];
+    case "flask":
+      return [
+        { kind: "stroke", d: `M ${-s*0.15} ${-s*0.45} L ${s*0.15} ${-s*0.45}`, width: 5 },
+        { kind: "fill", d: `M ${-s*0.12} ${-s*0.4} L ${s*0.12} ${-s*0.4} L ${s*0.12} ${-s*0.1} L ${s*0.4} ${s*0.4} L ${-s*0.4} ${s*0.4} L ${-s*0.12} ${-s*0.1} Z`, fill: color },
+      ];
+    case "magnet":
+      return [
+        { kind: "fill", d: `M ${-s*0.4} ${-s*0.4} L ${-s*0.15} ${-s*0.4} L ${-s*0.15} ${s*0.15} a ${s*0.15} ${s*0.15} 0 0 0 ${s*0.3} 0 L ${s*0.15} ${-s*0.4} L ${s*0.4} ${-s*0.4} L ${s*0.4} ${s*0.15} a ${s*0.4} ${s*0.4} 0 0 1 ${-s*0.8} 0 Z`, fill: color },
+        { kind: "fill", d: `M ${-s*0.4} ${-s*0.4} L ${-s*0.15} ${-s*0.4} L ${-s*0.15} ${-s*0.2} L ${-s*0.4} ${-s*0.2} Z`, fill: "#fafaf5" },
+        { kind: "fill", d: `M ${s*0.15} ${-s*0.4} L ${s*0.4} ${-s*0.4} L ${s*0.4} ${-s*0.2} L ${s*0.15} ${-s*0.2} Z`, fill: "#fafaf5" },
+      ];
+    case "wand":
+      return [
+        { kind: "fill", d: `M ${-s*0.4} ${s*0.4} L ${s*0.3} ${-s*0.3} L ${s*0.4} ${-s*0.2} L ${-s*0.3} ${s*0.5} Z`, fill: color },
+        { kind: "fill", d: `M ${s*0.3} ${-s*0.5} L ${s*0.35} ${-s*0.35} L ${s*0.5} ${-s*0.3} L ${s*0.35} ${-s*0.25} L ${s*0.3} ${-s*0.1} L ${s*0.25} ${-s*0.25} L ${s*0.1} ${-s*0.3} L ${s*0.25} ${-s*0.35} Z`, fill: "#f2c94c" },
+      ];
+    case "battery":
+      return [
+        { kind: "fill", d: `M ${-s*0.45} ${-s*0.25} L ${s*0.4} ${-s*0.25} L ${s*0.4} ${s*0.25} L ${-s*0.45} ${s*0.25} Z`, fill: "#fafaf5", stroke: ink },
+        { kind: "fill", d: `M ${s*0.4} ${-s*0.1} L ${s*0.5} ${-s*0.1} L ${s*0.5} ${s*0.1} L ${s*0.4} ${s*0.1} Z`, fill: ink },
+        { kind: "fill", d: `M ${-s*0.4} ${-s*0.2} L ${s*0.1} ${-s*0.2} L ${s*0.1} ${s*0.2} L ${-s*0.4} ${s*0.2} Z`, fill: color },
+      ];
+    case "wifi":
+      return [
+        { kind: "stroke", d: `M ${-s*0.5} ${-s*0.05} q ${s*0.5} ${-s*0.45} ${s*1.0} 0`, stroke: color, width: 6 },
+        { kind: "stroke", d: `M ${-s*0.35} ${s*0.1} q ${s*0.35} ${-s*0.3} ${s*0.7} 0`, stroke: color, width: 6 },
+        { kind: "stroke", d: `M ${-s*0.2} ${s*0.25} q ${s*0.2} ${-s*0.18} ${s*0.4} 0`, stroke: color, width: 6 },
+        { kind: "fill", d: `M 0 ${s*0.42} a ${s*0.06} ${s*0.06} 0 1 0 0.01 0 Z`, fill: color },
+      ];
+    case "droplet":
+      return [
+        { kind: "fill", d: `M 0 ${-s*0.5} Q ${s*0.4} 0 ${s*0.3} ${s*0.25} a ${s*0.3} ${s*0.3} 0 1 1 ${-s*0.6} 0 Q ${-s*0.4} 0 0 ${-s*0.5} Z`, fill: color },
+      ];
+    case "snowflake":
+      return [
+        { kind: "stroke", d: `M 0 ${-s*0.5} L 0 ${s*0.5} M ${-s*0.45} ${-s*0.25} L ${s*0.45} ${s*0.25} M ${-s*0.45} ${s*0.25} L ${s*0.45} ${-s*0.25}`, stroke: color, width: 5 },
+        { kind: "stroke", d: `M ${-s*0.12} ${-s*0.4} L 0 ${-s*0.3} L ${s*0.12} ${-s*0.4} M ${-s*0.12} ${s*0.4} L 0 ${s*0.3} L ${s*0.12} ${s*0.4}`, stroke: color, width: 4 },
+      ];
+    case "umbrella":
+      return [
+        { kind: "fill", d: `M ${-s*0.5} 0 Q 0 ${-s*0.55} ${s*0.5} 0 Q ${s*0.3} ${-s*0.1} ${s*0.15} 0 Q 0 ${-s*0.1} ${-s*0.15} 0 Q ${-s*0.3} ${-s*0.1} ${-s*0.5} 0 Z`, fill: color },
+        { kind: "stroke", d: `M 0 0 L 0 ${s*0.35} q 0 ${s*0.15} ${-s*0.15} ${s*0.15}`, width: 5 },
+      ];
+    case "pizza":
+      return [
+        { kind: "fill", d: `M 0 ${-s*0.45} L ${s*0.45} ${s*0.4} L ${-s*0.45} ${s*0.4} Z`, fill: "#e8b54a" },
+        { kind: "fill", d: `M ${-s*0.15} ${s*0.05} a ${s*0.07} ${s*0.07} 0 1 0 0.01 0 Z`, fill: color },
+        { kind: "fill", d: `M ${s*0.15} ${s*0.05} a ${s*0.07} ${s*0.07} 0 1 0 0.01 0 Z`, fill: color },
+        { kind: "fill", d: `M 0 ${s*0.25} a ${s*0.07} ${s*0.07} 0 1 0 0.01 0 Z`, fill: color },
+      ];
+    case "bicycle":
+      return [
+        { kind: "stroke", d: `M ${-s*0.3} ${s*0.25} a ${s*0.18} ${s*0.18} 0 1 0 0.01 0 Z`, stroke: color, width: 5 },
+        { kind: "stroke", d: `M ${s*0.3} ${s*0.25} a ${s*0.18} ${s*0.18} 0 1 0 0.01 0 Z`, stroke: color, width: 5 },
+        { kind: "stroke", d: `M ${-s*0.3} ${s*0.25} L 0 ${-s*0.1} L ${s*0.3} ${s*0.25} L ${s*0.05} ${-s*0.1} L 0 ${-s*0.1}`, stroke: color, width: 4 },
+        { kind: "stroke", d: `M ${-s*0.05} ${-s*0.3} L ${s*0.15} ${-s*0.3}`, stroke: ink, width: 4 },
+      ];
+    case "factory":
+      return [
+        { kind: "fill", d: `M ${-s*0.5} ${s*0.4} L ${-s*0.5} ${-s*0.1} L ${-s*0.2} ${s*0.1} L ${-s*0.2} ${-s*0.1} L ${s*0.1} ${s*0.1} L ${s*0.1} ${-s*0.3} L ${s*0.5} ${-s*0.3} L ${s*0.5} ${s*0.4} Z`, fill: color },
+        { kind: "fill", d: `M ${s*0.2} ${-s*0.5} L ${s*0.4} ${-s*0.5} L ${s*0.35} ${-s*0.3} L ${s*0.25} ${-s*0.3} Z`, fill: color },
+      ];
+    case "school":
+      return [
+        { kind: "fill", d: `M ${-s*0.5} ${s*0.45} L ${-s*0.5} ${-s*0.05} L 0 ${-s*0.4} L ${s*0.5} ${-s*0.05} L ${s*0.5} ${s*0.45} Z`, fill: color },
+        { kind: "fill", d: `M ${-s*0.15} ${s*0.45} L ${-s*0.15} ${s*0.15} L ${s*0.15} ${s*0.15} L ${s*0.15} ${s*0.45} Z`, fill: "#3a2a1a" },
+        { kind: "fill", d: `M ${-s*0.05} ${-s*0.5} L ${s*0.05} ${-s*0.5} L ${s*0.05} ${-s*0.35} L ${-s*0.05} ${-s*0.35} Z`, fill: ink },
+      ];
+    case "hospital":
+      return [
+        { kind: "fill", d: `M ${-s*0.45} ${s*0.45} L ${-s*0.45} ${-s*0.4} L ${s*0.45} ${-s*0.4} L ${s*0.45} ${s*0.45} Z`, fill: "#fafaf5", stroke: ink },
+        { kind: "fill", d: `M ${-s*0.12} ${-s*0.3} L ${s*0.12} ${-s*0.3} L ${s*0.12} ${-s*0.1} L ${s*0.3} ${-s*0.1} L ${s*0.3} ${s*0.1} L ${s*0.12} ${s*0.1} L ${s*0.12} ${s*0.3} L ${-s*0.12} ${s*0.3} L ${-s*0.12} ${s*0.1} L ${-s*0.3} ${s*0.1} L ${-s*0.3} ${-s*0.1} L ${-s*0.12} ${-s*0.1} Z`, fill: color },
       ];
     case "stick":
     default:
