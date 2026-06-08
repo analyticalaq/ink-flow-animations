@@ -171,8 +171,7 @@ function StudioPage() {
     if (!script.trim()) return;
     setLoading(true);
     try {
-      const res = await generate({ data: { script, style, pacing } });
-      // include the requested target duration
+      const res = await generate({ data: { script, style, pacing, durationMinutes } });
       if ("error" in res && res.error) {
         toast.error(res.error);
         return;
