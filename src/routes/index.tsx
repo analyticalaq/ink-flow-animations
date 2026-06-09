@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { WhiteboardCanvas, type TimelineItem } from "@/components/WhiteboardCanvas";
 import { generateTimeline } from "@/lib/generateTimeline.functions";
+import { buildTimelineFromScript } from "@/lib/scriptToTimeline";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -173,11 +174,18 @@ function StudioPage() {
     try {
       const res = await generate({ data: { script, style, pacing, durationMinutes } });
       if ("error" in res && res.error) {
-        toast.error(res.error);
+        // Fall back to deterministic local parser so the user always gets a result.
+        const built = buildTimelineFromScript(script, { durationMinutes, pacing });
+        setProject(built);
+        setPlayKey((k) => k + 1);
+        toast.warning(`${res.error} Built a local animation from your script instead.`);
         return;
       }
       if (!("items" in res) || !res.items?.length) {
-        toast.error("AI returned no items. Try a longer prompt.");
+        const built = buildTimelineFromScript(script, { durationMinutes, pacing });
+        setProject(built);
+        setPlayKey((k) => k + 1);
+        toast.warning("AI returned no items — built a local animation from your script instead.");
         return;
       }
       setProject({
@@ -193,6 +201,14 @@ function StudioPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function onAutoBuild() {
+    if (!script.trim()) return;
+    const built = buildTimelineFromScript(script, { durationMinutes, pacing });
+    setProject(built);
+    setPlayKey((k) => k + 1);
+    toast.success(`Auto-built ${built.items.filter((i) => i.type === "icon").length} illustrations from your script`);
   }
 
   function speakNarration() {
@@ -507,6 +523,15 @@ function StudioPage() {
             className="w-full"
           >
             {loading ? "Generating…" : "Generate animation"}
+          </Button>
+
+          <Button
+            onClick={onAutoBuild}
+            disabled={!script.trim()}
+            variant="outline"
+            className="w-full"
+          >
+            Auto-build from script (no AI)
           </Button>
 
           <div className="flex gap-2">
