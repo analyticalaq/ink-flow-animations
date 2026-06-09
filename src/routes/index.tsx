@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { WhiteboardCanvas, type TimelineItem } from "@/components/WhiteboardCanvas";
 import { generateTimeline } from "@/lib/generateTimeline.functions";
 import { buildTimelineFromScript } from "@/lib/scriptToTimeline";
+import { toCanvas } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -253,10 +254,6 @@ function StudioPage() {
     setPlayKey((k) => k + 1);
 
     try {
-      const svgEl = wrap.querySelector("svg");
-      if (!svgEl) throw new Error("No canvas");
-      const svg: SVGSVGElement = svgEl as SVGSVGElement;
-
       const W = 1280;
       const H = 720;
       const canvas = document.createElement("canvas");
@@ -282,6 +279,8 @@ function StudioPage() {
         recorder.onstop = () => resolve(new Blob(chunks, { type: mime }));
       });
 
+      const bgColor = mode === "chalk" ? "#0f2a1f" : mode === "sketch" ? "#fdf6e3" : "#fafaf5";
+
       // Start narration in sync with recording
       speakNarration();
       recorder.start();
@@ -289,28 +288,37 @@ function StudioPage() {
       const start = performance.now();
       const durationMs = totalDuration * 1000 + 500;
       let stopped = false;
+      let capturing = false;
 
       async function frame() {
         if (stopped) return;
-        const now = performance.now();
-        const elapsed = now - start;
-        // Serialize current SVG (with running animations) to image
-        const svgClone = svg.cloneNode(true) as SVGSVGElement;
-        svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-        const xml = new XMLSerializer().serializeToString(svgClone);
-        const img = new Image();
-        const blobUrl = URL.createObjectURL(
-          new Blob([xml], { type: "image/svg+xml" }),
-        );
-        await new Promise<void>((res, rej) => {
-          img.onload = () => res();
-          img.onerror = () => rej(new Error("svg image"));
-          img.src = blobUrl;
-        });
-        ctx.fillStyle = mode === "chalk" ? "#0f2a1f" : mode === "sketch" ? "#fdf6e3" : "#fafaf5";
-        ctx.fillRect(0, 0, W, H);
-        ctx.drawImage(img, 0, 0, W, H);
-        URL.revokeObjectURL(blobUrl);
+        const elapsed = performance.now() - start;
+
+        if (!capturing) {
+          capturing = true;
+          try {
+            // Snapshot the live DOM with computed styles so in-flight
+            // CSS animations (opacity, transform, stroke-dashoffset, clip
+            // sweep) are baked into the captured frame.
+            const snap = await toCanvas(wrap, {
+              width: W,
+              height: H,
+              canvasWidth: W,
+              canvasHeight: H,
+              backgroundColor: bgColor,
+              pixelRatio: 1,
+              cacheBust: false,
+              skipFonts: true,
+            });
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, W, H);
+            ctx.drawImage(snap, 0, 0, W, H);
+          } catch (err) {
+            console.warn("frame capture failed", err);
+          } finally {
+            capturing = false;
+          }
+        }
 
         if (elapsed < durationMs) {
           requestAnimationFrame(() => frame());
