@@ -244,8 +244,9 @@ function StudioPage() {
   }
 
   async function onExport() {
-    const wrap = canvasWrapRef.current;
+    const wrap: HTMLDivElement | null = canvasWrapRef.current;
     if (!wrap) return;
+    const wrapEl: HTMLElement = wrap;
     if (typeof (window as unknown as { MediaRecorder?: unknown }).MediaRecorder === "undefined") {
       toast.error("Your browser doesn't support video export.");
       return;
@@ -300,7 +301,7 @@ function StudioPage() {
             // Snapshot the live DOM with computed styles so in-flight
             // CSS animations (opacity, transform, stroke-dashoffset, clip
             // sweep) are baked into the captured frame.
-            const snap = await toCanvas(wrap, {
+            const snap = await toCanvas(wrapEl, {
               width: W,
               height: H,
               canvasWidth: W,
