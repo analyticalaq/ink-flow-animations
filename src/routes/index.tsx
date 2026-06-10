@@ -735,6 +735,7 @@ function StudioPage() {
               key={`${mode}-${playKey}`}
               timeline={scaledItems}
               mode={mode}
+              playing={isPlaying}
             />
             <button
               type="button"
