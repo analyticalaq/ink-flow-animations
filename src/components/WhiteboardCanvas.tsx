@@ -667,7 +667,7 @@ function circlePath(cx: number, cy: number, r: number): string {
   return `M ${cx + r} ${cy} a ${r} ${r} 0 1 1 -${r * 2} 0 a ${r} ${r} 0 1 1 ${r * 2} 0`;
 }
 
-export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, className }: WhiteboardCanvasProps) {
+export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, className, playing = true }: WhiteboardCanvasProps) {
   const isChalk = mode === "chalk";
   const isSketch = mode === "sketch";
   const ink = isChalk ? "#f5f5f0" : isSketch ? "#1d3557" : "#1a1a1a";
