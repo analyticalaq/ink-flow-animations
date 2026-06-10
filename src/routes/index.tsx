@@ -7,6 +7,8 @@ import { WhiteboardCanvas, type TimelineItem } from "@/components/WhiteboardCanv
 import { generateTimeline } from "@/lib/generateTimeline.functions";
 import { buildTimelineFromScript } from "@/lib/scriptToTimeline";
 import { toCanvas } from "html-to-image";
+import { Muxer as WebmMuxer, ArrayBufferTarget as WebmTarget } from "webm-muxer";
+import { Muxer as Mp4Muxer, ArrayBufferTarget as Mp4Target } from "mp4-muxer";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -100,6 +102,7 @@ function StudioPage() {
   const [loading, setLoading] = useState(false);
   const [playKey, setPlayKey] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState<number>(0);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voiceURI, setVoiceURI] = useState<string>("");
   const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>("natural");
@@ -247,102 +250,208 @@ function StudioPage() {
     const wrap: HTMLDivElement | null = canvasWrapRef.current;
     if (!wrap) return;
     const wrapEl: HTMLElement = wrap;
-    if (typeof (window as unknown as { MediaRecorder?: unknown }).MediaRecorder === "undefined") {
-      toast.error("Your browser doesn't support video export.");
+    const hasWebCodecs =
+      typeof (window as unknown as { VideoEncoder?: unknown }).VideoEncoder !== "undefined";
+    if (!hasWebCodecs) {
+      toast.error(
+        "Reliable export needs Chrome, Edge, or Opera (WebCodecs). Please try one of those.",
+      );
       return;
     }
+
     setExporting(true);
+    setExportProgress(0);
+    // Re-mount the canvas so all CSS animations start at time 0
     setPlayKey((k) => k + 1);
+    // Stop any narration; export is silent video (audio recording isn't
+    // reliable across browsers and was the source of desync)
+    window.speechSynthesis?.cancel();
+
+    const W = 1280;
+    const H = 720;
+    const fps = 30;
+    const durationSec = totalDuration + 0.4;
+    const totalFrames = Math.max(1, Math.ceil(durationSec * fps));
+    const bgColor =
+      mode === "chalk" ? "#0f2a1f" : mode === "sketch" ? "#fdf6e3" : "#fafaf5";
+
+    // Give the canvas a tick to mount before we pause animations
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    await new Promise((r) => setTimeout(r, 50));
+
+    type AnyAnim = Animation & { currentTime: number | null };
+    const anims = (wrapEl.getAnimations({ subtree: true }) as AnyAnim[]).filter(
+      (a) => a.effect,
+    );
+    anims.forEach((a) => {
+      try {
+        a.pause();
+      } catch {
+        /* ignore */
+      }
+    });
+
+    const tmpCanvas = document.createElement("canvas");
+    tmpCanvas.width = W;
+    tmpCanvas.height = H;
+    const ctx = tmpCanvas.getContext("2d")!;
 
     try {
-      const W = 1280;
-      const H = 720;
-      const canvas = document.createElement("canvas");
-      canvas.width = W;
-      canvas.height = H;
-      const ctx = canvas.getContext("2d")!;
+      // Prefer MP4 (H.264) because it plays everywhere; fall back to WebM/VP9.
+      const supportsH264 = await VideoEncoder.isConfigSupported({
+        codec: "avc1.42E01F",
+        width: W,
+        height: H,
+        bitrate: 4_000_000,
+        framerate: fps,
+      }).then((r) => !!r.supported).catch(() => false);
 
-      const stream = canvas.captureStream(30);
-      const mimeCandidates = [
-        "video/webm;codecs=vp9",
-        "video/webm;codecs=vp8",
-        "video/webm",
-      ];
-      const mime = mimeCandidates.find((m) =>
-        (window as unknown as { MediaRecorder: { isTypeSupported: (s: string) => boolean } })
-          .MediaRecorder.isTypeSupported(m),
-      )!;
-      const recorder = new MediaRecorder(stream, { mimeType: mime });
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+      let muxerKind: "mp4" | "webm" = supportsH264 ? "mp4" : "webm";
+      let mp4Muxer: Mp4Muxer<Mp4Target> | null = null;
+      let webmMuxer: WebmMuxer<WebmTarget> | null = null;
 
-      const done = new Promise<Blob>((resolve) => {
-        recorder.onstop = () => resolve(new Blob(chunks, { type: mime }));
+      if (muxerKind === "mp4") {
+        mp4Muxer = new Mp4Muxer({
+          target: new Mp4Target(),
+          fastStart: "in-memory",
+          video: { codec: "avc", width: W, height: H },
+        });
+      } else {
+        webmMuxer = new WebmMuxer({
+          target: new WebmTarget(),
+          video: { codec: "V_VP9", width: W, height: H, frameRate: fps },
+        });
+      }
+
+      const encoder = new VideoEncoder({
+        output: (chunk, meta) => {
+          if (muxerKind === "mp4") mp4Muxer!.addVideoChunk(chunk, meta);
+          else webmMuxer!.addVideoChunk(chunk, meta);
+        },
+        error: (e) => console.error("encoder error", e),
       });
 
-      const bgColor = mode === "chalk" ? "#0f2a1f" : mode === "sketch" ? "#fdf6e3" : "#fafaf5";
-
-      // Start narration in sync with recording
-      speakNarration();
-      recorder.start();
-
-      const start = performance.now();
-      const durationMs = totalDuration * 1000 + 500;
-      let stopped = false;
-      let capturing = false;
-
-      async function frame() {
-        if (stopped) return;
-        const elapsed = performance.now() - start;
-
-        if (!capturing) {
-          capturing = true;
-          try {
-            // Snapshot the live DOM with computed styles so in-flight
-            // CSS animations (opacity, transform, stroke-dashoffset, clip
-            // sweep) are baked into the captured frame.
-            const snap = await toCanvas(wrapEl, {
+      encoder.configure(
+        muxerKind === "mp4"
+          ? {
+              codec: "avc1.42E01F",
               width: W,
               height: H,
-              canvasWidth: W,
-              canvasHeight: H,
-              backgroundColor: bgColor,
-              pixelRatio: 1,
-              cacheBust: false,
-              skipFonts: true,
-            });
-            ctx.fillStyle = bgColor;
-            ctx.fillRect(0, 0, W, H);
-            ctx.drawImage(snap, 0, 0, W, H);
-          } catch (err) {
-            console.warn("frame capture failed", err);
-          } finally {
-            capturing = false;
+              bitrate: 4_000_000,
+              framerate: fps,
+              avc: { format: "avc" },
+            }
+          : {
+              codec: "vp09.00.10.08",
+              width: W,
+              height: H,
+              bitrate: 4_000_000,
+              framerate: fps,
+            },
+      );
+
+      const frameUs = 1_000_000 / fps;
+
+      for (let f = 0; f < totalFrames; f++) {
+        const tSec = f / fps;
+        // Scrub every CSS animation to the exact timeline moment
+        anims.forEach((a) => {
+          try {
+            const ms = tSec * 1000;
+            // currentTime is local to each animation's timeline; clamp to
+            // its active duration so finished animations stay finished.
+            const timing = a.effect?.getComputedTiming();
+            const endTime =
+              typeof timing?.endTime === "number"
+                ? (timing.endTime as number)
+                : Number(timing?.endTime ?? Infinity);
+            a.currentTime = Math.min(ms, isFinite(endTime) ? endTime : ms);
+          } catch {
+            /* ignore */
           }
+        });
+
+        // Let the browser commit the scrubbed styles before snapshotting
+        await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+        let snap: HTMLCanvasElement | null = null;
+        try {
+          snap = await toCanvas(wrapEl, {
+            width: W,
+            height: H,
+            canvasWidth: W,
+            canvasHeight: H,
+            backgroundColor: bgColor,
+            pixelRatio: 1,
+            cacheBust: false,
+            skipFonts: true,
+          });
+        } catch (err) {
+          console.warn("snapshot failed", err);
         }
 
-        if (elapsed < durationMs) {
-          requestAnimationFrame(() => frame());
-        } else {
-          stopped = true;
-          recorder.stop();
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, W, H);
+        if (snap) ctx.drawImage(snap, 0, 0, W, H);
+
+        const vf = new VideoFrame(tmpCanvas, {
+          timestamp: Math.round(f * frameUs),
+          duration: Math.round(frameUs),
+        });
+        encoder.encode(vf, { keyFrame: f % fps === 0 });
+        vf.close();
+
+        // Throttle so we don't pile up frames in the encoder
+        if (encoder.encodeQueueSize > 8) {
+          await new Promise((r) => setTimeout(r, 8));
         }
+
+        setExportProgress((f + 1) / totalFrames);
       }
-      requestAnimationFrame(() => frame());
 
-      const blob = await done;
+      await encoder.flush();
+      encoder.close();
+
+      let blob: Blob;
+      let ext: string;
+      if (muxerKind === "mp4") {
+        mp4Muxer!.finalize();
+        blob = new Blob([(mp4Muxer!.target as Mp4Target).buffer], {
+          type: "video/mp4",
+        });
+        ext = "mp4";
+      } else {
+        webmMuxer!.finalize();
+        blob = new Blob([(webmMuxer!.target as WebmTarget).buffer], {
+          type: "video/webm",
+        });
+        ext = "webm";
+      }
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${(project.title || "whiteboard").replace(/\s+/g, "-").toLowerCase()}.webm`;
+      a.download = `${(project.title || "whiteboard")
+        .replace(/\s+/g, "-")
+        .toLowerCase()}.${ext}`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Video exported");
+      toast.success(`Video exported as .${ext}`);
     } catch (e) {
       console.error(e);
       toast.error("Export failed.");
     } finally {
+      // Resume animations & restart the live preview
+      anims.forEach((a) => {
+        try {
+          a.play();
+        } catch {
+          /* ignore */
+        }
+      });
       setExporting(false);
+      setExportProgress(0);
+      setPlayKey((k) => k + 1);
     }
   }
 
@@ -379,7 +488,9 @@ function StudioPage() {
               Share link
             </Button>
             <Button size="sm" onClick={onExport} disabled={exporting}>
-              {exporting ? "Exporting…" : "Export .webm"}
+              {exporting
+                ? `Exporting ${Math.round(exportProgress * 100)}%`
+                : "Download video"}
             </Button>
           </div>
         </div>
