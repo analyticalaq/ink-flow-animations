@@ -229,9 +229,16 @@ function StudioPage() {
   }
 
   function onPlay() {
-    setPlayKey((k) => k + 1);
-    // start narration shortly after first stroke
-    window.setTimeout(speakNarration, 250);
+    if (isPlaying) {
+      setIsPlaying(false);
+      try { window.speechSynthesis?.pause(); } catch { /* ignore */ }
+    } else {
+      setPlayKey((k) => k + 1);
+      setIsPlaying(true);
+      try { window.speechSynthesis?.resume(); } catch { /* ignore */ }
+      // start narration shortly after first stroke
+      window.setTimeout(speakNarration, 250);
+    }
   }
 
   function onShare() {
