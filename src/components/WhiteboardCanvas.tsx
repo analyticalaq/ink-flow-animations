@@ -807,6 +807,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
       `}</style>
 
       <svg
+        ref={svgRef}
         key={cycle}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         preserveAspectRatio="xMidYMid meet"
