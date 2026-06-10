@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 
 export type IconName =
   | "brain" | "bulb" | "box" | "stick" | "chart" | "star"
@@ -92,6 +92,7 @@ export interface WhiteboardCanvasProps {
   mode?: "marker" | "chalk" | "sketch";
   loop?: boolean;
   className?: string;
+  playing?: boolean;
 }
 
 const WIDTH = 1920;
@@ -666,12 +667,38 @@ function circlePath(cx: number, cy: number, r: number): string {
   return `M ${cx + r} ${cy} a ${r} ${r} 0 1 1 -${r * 2} 0 a ${r} ${r} 0 1 1 ${r * 2} 0`;
 }
 
-export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, className }: WhiteboardCanvasProps) {
+export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, className, playing = true }: WhiteboardCanvasProps) {
   const isChalk = mode === "chalk";
   const isSketch = mode === "sketch";
   const ink = isChalk ? "#f5f5f0" : isSketch ? "#1d3557" : "#1a1a1a";
   const bg = isChalk ? "#0f2a1f" : isSketch ? "#fdf6e3" : "#fafaf5";
   const animKey = useMemo(() => uid(), []);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    if (!svgRef.current) return;
+    const raf = requestAnimationFrame(() => {
+      const anims = svgRef.current?.getAnimations({ subtree: true }) ?? [];
+      if (playing) {
+        anims.forEach((a) => {
+          try {
+            a.play();
+          } catch {
+            /* ignore */
+          }
+        });
+      } else {
+        anims.forEach((a) => {
+          try {
+            a.pause();
+          } catch {
+            /* ignore */
+          }
+        });
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [playing]);
 
   // Compute scene boundaries (start delay + clear delay per scene)
   const sceneBounds = useMemo(() => {
@@ -783,6 +810,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
       `}</style>
 
       <svg
+        ref={svgRef}
         key={cycle}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         preserveAspectRatio="xMidYMid meet"
