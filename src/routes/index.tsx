@@ -756,23 +756,39 @@ function StudioPage() {
               mode={mode}
               playing={isPlaying}
             />
-            <button
-              type="button"
-              onClick={toggleFullscreen}
-              aria-label={isFullscreen ? "Exit fullscreen" : "Maximize"}
-              title={isFullscreen ? "Exit fullscreen (Esc)" : "Maximize"}
-              className="absolute right-3 top-3 z-10 rounded-md border border-border/40 bg-background/70 p-2 text-foreground shadow-sm backdrop-blur transition-colors hover:bg-background"
-            >
-              {isFullscreen ? (
+            <div className="absolute right-3 top-3 z-10 flex gap-2">
+              <button
+                type="button"
+                onClick={onExport}
+                disabled={exporting}
+                aria-label="Download video"
+                title="Download video"
+                className="rounded-md border border-border/40 bg-background/70 p-2 text-foreground shadow-sm backdrop-blur transition-all hover:scale-105 hover:bg-background active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21v-6H3M15 3v6h6M3 9h6V3M21 15h-6v6" />
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
-                </svg>
-              )}
-            </button>
+              </button>
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                aria-label={isFullscreen ? "Exit fullscreen" : "Maximize"}
+                title={isFullscreen ? "Exit fullscreen (Esc)" : "Maximize"}
+                className="rounded-md border border-border/40 bg-background/70 p-2 text-foreground shadow-sm backdrop-blur transition-all hover:scale-105 hover:bg-background active:scale-95"
+              >
+                {isFullscreen ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21v-6H3M15 3v6h6M3 9h6V3M21 15h-6v6" />
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
         </section>
       </main>
