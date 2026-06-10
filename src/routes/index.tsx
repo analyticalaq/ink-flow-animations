@@ -233,11 +233,12 @@ function StudioPage() {
       setIsPlaying(false);
       try { window.speechSynthesis?.pause(); } catch { /* ignore */ }
     } else {
-      setPlayKey((k) => k + 1);
       setIsPlaying(true);
       try { window.speechSynthesis?.resume(); } catch { /* ignore */ }
-      // start narration shortly after first stroke
-      window.setTimeout(speakNarration, 250);
+      const ss = window.speechSynthesis;
+      if (project.narration && ss && !ss.speaking && !ss.pending) {
+        window.setTimeout(speakNarration, 250);
+      }
     }
   }
 
