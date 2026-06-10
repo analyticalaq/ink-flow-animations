@@ -92,6 +92,7 @@ export interface WhiteboardCanvasProps {
   mode?: "marker" | "chalk" | "sketch";
   loop?: boolean;
   className?: string;
+  playing?: boolean;
 }
 
 const WIDTH = 1920;
