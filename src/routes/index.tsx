@@ -216,6 +216,7 @@ function StudioPage() {
     const built = buildTimelineFromScript(script, { durationMinutes, pacing });
     setProject(built);
     setPlayKey((k) => k + 1);
+    setIsPlaying(true);
     toast.success(`Auto-built ${built.items.filter((i) => i.type === "icon").length} illustrations from your script`);
   }
 
