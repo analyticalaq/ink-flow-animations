@@ -101,7 +101,7 @@ function StudioPage() {
   const [project, setProject] = useState<Project>(DEMO);
   const [loading, setLoading] = useState(false);
   const [playKey, setPlayKey] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<number>(0);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
