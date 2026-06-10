@@ -673,6 +673,29 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
   const ink = isChalk ? "#f5f5f0" : isSketch ? "#1d3557" : "#1a1a1a";
   const bg = isChalk ? "#0f2a1f" : isSketch ? "#fdf6e3" : "#fafaf5";
   const animKey = useMemo(() => uid(), []);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    if (!svgRef.current) return;
+    const anims = svgRef.current.getAnimations({ subtree: true });
+    if (playing) {
+      anims.forEach((a) => {
+        try {
+          a.play();
+        } catch {
+          /* ignore */
+        }
+      });
+    } else {
+      anims.forEach((a) => {
+        try {
+          a.pause();
+        } catch {
+          /* ignore */
+        }
+      });
+    }
+  }, [playing]);
 
   // Compute scene boundaries (start delay + clear delay per scene)
   const sceneBounds = useMemo(() => {
