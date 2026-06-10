@@ -374,6 +374,35 @@ function StudioPage() {
         // Let the browser commit the scrubbed styles before snapshotting
         await new Promise((r) => requestAnimationFrame(() => r(null)));
 
+        // Bake the live, scrubbed animation state into inline styles on every
+        // animated element. html-to-image serializes the DOM into an SVG
+        // <foreignObject>, which RESTARTS CSS @keyframes at time 0 in the
+        // snapshot — so without baking we'd capture the initial (invisible)
+        // state of every element on every frame. Baking computed values and
+        // disabling the animation makes the snapshot match what's on screen.
+        const animated = Array.from(
+          wrapEl.querySelectorAll<HTMLElement | SVGElement>(
+            '[class*="wb-path-"],[class*="wb-fill-"],[class*="wb-blob-"],[class*="wb-text-"],[class*="wb-scene-out-"],[class*="wb-text-clip-"] rect',
+          ),
+        );
+        const saved: Array<{ el: HTMLElement | SVGElement; cssText: string }> = [];
+        animated.forEach((el) => {
+          const cs = window.getComputedStyle(el);
+          saved.push({ el, cssText: el.getAttribute("style") || "" });
+          const s = (el as HTMLElement).style;
+          s.animation = "none";
+          s.opacity = cs.opacity;
+          if (cs.transform && cs.transform !== "none") s.transform = cs.transform;
+          const sdo = cs.getPropertyValue("stroke-dashoffset");
+          if (sdo) s.setProperty("stroke-dashoffset", sdo);
+          const sda = cs.getPropertyValue("stroke-dasharray");
+          if (sda) s.setProperty("stroke-dasharray", sda);
+          if (el.tagName.toLowerCase() === "rect") {
+            const w = cs.width;
+            if (w) s.setProperty("width", w);
+          }
+        });
+
         let snap: HTMLCanvasElement | null = null;
         try {
           snap = await toCanvas(wrapEl, {
@@ -389,6 +418,12 @@ function StudioPage() {
         } catch (err) {
           console.warn("snapshot failed", err);
         }
+
+        // Restore inline styles so the live animation continues correctly
+        saved.forEach(({ el, cssText }) => {
+          if (cssText) el.setAttribute("style", cssText);
+          else el.removeAttribute("style");
+        });
 
         ctx.fillStyle = bgColor;
         ctx.fillRect(0, 0, W, H);
