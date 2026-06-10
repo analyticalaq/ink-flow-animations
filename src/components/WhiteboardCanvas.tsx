@@ -677,24 +677,27 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
 
   useEffect(() => {
     if (!svgRef.current) return;
-    const anims = svgRef.current.getAnimations({ subtree: true });
-    if (playing) {
-      anims.forEach((a) => {
-        try {
-          a.play();
-        } catch {
-          /* ignore */
-        }
-      });
-    } else {
-      anims.forEach((a) => {
-        try {
-          a.pause();
-        } catch {
-          /* ignore */
-        }
-      });
-    }
+    const raf = requestAnimationFrame(() => {
+      const anims = svgRef.current?.getAnimations({ subtree: true }) ?? [];
+      if (playing) {
+        anims.forEach((a) => {
+          try {
+            a.play();
+          } catch {
+            /* ignore */
+          }
+        });
+      } else {
+        anims.forEach((a) => {
+          try {
+            a.pause();
+          } catch {
+            /* ignore */
+          }
+        });
+      }
+    });
+    return () => cancelAnimationFrame(raf);
   }, [playing]);
 
   // Compute scene boundaries (start delay + clear delay per scene)
