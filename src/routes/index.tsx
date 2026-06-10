@@ -183,6 +183,7 @@ function StudioPage() {
         const built = buildTimelineFromScript(script, { durationMinutes, pacing });
         setProject(built);
         setPlayKey((k) => k + 1);
+        setIsPlaying(true);
         toast.warning(`${res.error} Built a local animation from your script instead.`);
         return;
       }
@@ -190,6 +191,7 @@ function StudioPage() {
         const built = buildTimelineFromScript(script, { durationMinutes, pacing });
         setProject(built);
         setPlayKey((k) => k + 1);
+        setIsPlaying(true);
         toast.warning("AI returned no items — built a local animation from your script instead.");
         return;
       }
@@ -199,6 +201,7 @@ function StudioPage() {
         items: res.items as TimelineItem[],
       });
       setPlayKey((k) => k + 1);
+      setIsPlaying(true);
       toast.success("Animation generated");
     } catch (e) {
       console.error(e);
