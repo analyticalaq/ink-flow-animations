@@ -698,8 +698,27 @@ function StudioPage() {
           </Button>
 
           <div className="flex gap-2">
-            <Button variant="secondary" className="flex-1" onClick={onPlay}>
-              Replay
+            <Button
+              variant="secondary"
+              className="flex-1 gap-2 transition-transform hover:scale-105 active:scale-95"
+              onClick={onPlay}
+            >
+              {isPlaying ? (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" rx="1" />
+                    <rect x="14" y="4" width="4" height="16" rx="1" />
+                  </svg>
+                  Pause
+                </>
+              ) : (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                  Play
+                </>
+              )}
             </Button>
             <Button
               variant="outline"
