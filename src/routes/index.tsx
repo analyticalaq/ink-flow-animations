@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { WhiteboardCanvas, type TimelineItem } from "@/components/WhiteboardCanvas";
 import { generateTimeline } from "@/lib/generateTimeline.functions";
+import { synthesizeTTS } from "@/lib/tts.functions";
 import { buildTimelineFromScript } from "@/lib/scriptToTimeline";
 import { toCanvas } from "html-to-image";
 import { Muxer as WebmMuxer, ArrayBufferTarget as WebmTarget } from "webm-muxer";
@@ -82,17 +83,22 @@ const DEMO: Project = {
 
 type Mode = "marker" | "chalk" | "sketch";
 type Pacing = "slow" | "normal" | "fast";
-type VoiceStyle = "natural" | "energetic" | "calm" | "serious";
 
-const VOICE_STYLES: Record<VoiceStyle, { pitch: number; rateBias: number; label: string }> = {
-  natural: { pitch: 1.0, rateBias: 1.0, label: "Natural" },
-  energetic: { pitch: 1.15, rateBias: 1.08, label: "Energetic" },
-  calm: { pitch: 0.95, rateBias: 0.92, label: "Calm" },
-  serious: { pitch: 0.85, rateBias: 0.95, label: "Serious" },
-};
+// Curated ElevenLabs voice presets (see ElevenLabs Voice Library for more)
+const ELEVEN_VOICES: Array<{ id: string; label: string }> = [
+  { id: "EXAVITQu4vr4xnSDxMaL", label: "Sarah — warm narrator" },
+  { id: "JBFqnCBsd6RMkjVDRZzb", label: "George — calm British" },
+  { id: "TX3LPaxmHKxFdv7VOQHJ", label: "Liam — friendly explainer" },
+  { id: "cgSgspJ2msm6clMCkdW9", label: "Jessica — bright & clear" },
+  { id: "nPczCjzI2devNBz1zQrb", label: "Brian — deep & grounded" },
+  { id: "FGY2WhTYpPnrIDTdsKH5", label: "Laura — energetic" },
+  { id: "iP95p4xoKVk53GoZ742B", label: "Chris — conversational" },
+  { id: "pFZP5JQG7iQjIQuC4Bku", label: "Lily — soft & gentle" },
+];
 
 function StudioPage() {
   const generate = useServerFn(generateTimeline);
+  const tts = useServerFn(synthesizeTTS);
   const [script, setScript] = useState(STARTER_SCRIPT);
   const [style, setStyle] = useState<"explainer" | "story" | "lecture" | "pitch">("explainer");
   const [pacing, setPacing] = useState<Pacing>("normal");
@@ -104,11 +110,14 @@ function StudioPage() {
   const [isPlaying, setIsPlaying] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<number>(0);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [voiceURI, setVoiceURI] = useState<string>("");
-  const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>("natural");
+  const [voiceId, setVoiceId] = useState<string>(ELEVEN_VOICES[0].id);
+  const [ttsLoading, setTtsLoading] = useState(false);
   // Narration speed multiplier (also scales animation timeline so export stays in sync)
   const [speed, setSpeed] = useState<number>(1);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+  // Cache key: invalidates audio when narration / voice / speed changes
+  const audioCacheKeyRef = useRef<string>("");
 
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -133,26 +142,35 @@ function StudioPage() {
     }
   }
 
-  // Load available browser voices
-  useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const load = () => {
-      const list = window.speechSynthesis.getVoices();
-      setVoices(list);
-      if (list.length && !voiceURI) {
-        const preferred =
-          list.find((v) => v.lang.startsWith("en") && v.default) ??
-          list.find((v) => v.lang.startsWith("en")) ??
-          list[0];
-        setVoiceURI(preferred.voiceURI);
+  // Stop & clear any cached audio element
+  function stopAudio() {
+    const a = audioRef.current;
+    if (a) {
+      try {
+        a.pause();
+        a.currentTime = 0;
+      } catch {
+        /* ignore */
       }
-    };
-    load();
-    window.speechSynthesis.onvoiceschanged = load;
-    return () => {
-      window.speechSynthesis.onvoiceschanged = null;
-    };
-  }, [voiceURI]);
+    }
+  }
+  function disposeAudio() {
+    stopAudio();
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+    audioRef.current = null;
+    audioCacheKeyRef.current = "";
+  }
+
+  // Invalidate cached audio whenever narration, voice, or speed changes
+  useEffect(() => {
+    disposeAudio();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.narration, voiceId, speed]);
+
+  useEffect(() => () => disposeAudio(), []);
 
   // Scale timeline by speed so the canvas animation matches narration pacing
   const scaledItems = useMemo<TimelineItem[]>(() => {
@@ -220,29 +238,49 @@ function StudioPage() {
     toast.success(`Auto-built ${built.items.filter((i) => i.type === "icon").length} illustrations from your script`);
   }
 
-  function speakNarration() {
-    if (!("speechSynthesis" in window) || !project.narration) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(project.narration);
-    const preset = VOICE_STYLES[voiceStyle];
-    u.rate = Math.max(0.5, Math.min(2, speed * preset.rateBias));
-    u.pitch = preset.pitch;
-    const v = voices.find((x) => x.voiceURI === voiceURI);
-    if (v) u.voice = v;
-    window.speechSynthesis.speak(u);
+  async function ensureAudio(): Promise<HTMLAudioElement | null> {
+    if (!project.narration) return null;
+    const key = `${voiceId}|${speed}|${project.narration}`;
+    if (audioRef.current && audioCacheKeyRef.current === key) return audioRef.current;
+    disposeAudio();
+    setTtsLoading(true);
+    try {
+      const res = await tts({
+        data: { text: project.narration, voiceId, speed },
+      });
+      const url = `data:${res.mime};base64,${res.audioBase64}`;
+      const a = new Audio(url);
+      audioRef.current = a;
+      audioUrlRef.current = url;
+      audioCacheKeyRef.current = key;
+      a.addEventListener("ended", () => setIsPlaying(false));
+      return a;
+    } catch (e) {
+      console.error(e);
+      toast.error("Voice generation failed. Check your ElevenLabs connection.");
+      return null;
+    } finally {
+      setTtsLoading(false);
+    }
   }
 
-  function onPlay() {
+  async function onPlay() {
     if (isPlaying) {
       setIsPlaying(false);
-      try { window.speechSynthesis?.pause(); } catch { /* ignore */ }
-    } else {
-      setIsPlaying(true);
-      try { window.speechSynthesis?.resume(); } catch { /* ignore */ }
-      const ss = window.speechSynthesis;
-      if (project.narration && ss && !ss.speaking && !ss.pending) {
-        window.setTimeout(speakNarration, 250);
-      }
+      audioRef.current?.pause();
+      return;
+    }
+    setIsPlaying(true);
+    const a = await ensureAudio();
+    if (!a) {
+      setIsPlaying(false);
+      return;
+    }
+    try {
+      await a.play();
+    } catch (e) {
+      console.warn("audio play blocked", e);
+      setIsPlaying(false);
     }
   }
 
@@ -278,7 +316,7 @@ function StudioPage() {
     setPlayKey((k) => k + 1);
     // Stop any narration; export is silent video (audio recording isn't
     // reliable across browsers and was the source of desync)
-    window.speechSynthesis?.cancel();
+    stopAudio();
 
     const W = 1280;
     const H = 720;
@@ -631,36 +669,23 @@ function StudioPage() {
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Voice
             </p>
-            <div className="space-y-2">
-              <Label className="text-xs">Voice</Label>
-              <Select
-                value={voiceURI}
-                onValueChange={(v) => setVoiceURI(v)}
-                disabled={!voices.length}
-              >
+          <div className="space-y-2">
+              <Label className="text-xs">Voice (ElevenLabs)</Label>
+              <Select value={voiceId} onValueChange={(v) => setVoiceId(v)}>
                 <SelectTrigger>
-                  <SelectValue placeholder={voices.length ? "Pick a voice" : "Loading…"} />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="max-h-72">
-                  {voices.map((v) => (
-                    <SelectItem key={v.voiceURI} value={v.voiceURI}>
-                      {v.name} — {v.lang}
+                  {ELEVEN_VOICES.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs">Voice style</Label>
-              <Select value={voiceStyle} onValueChange={(v) => setVoiceStyle(v as VoiceStyle)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(VOICE_STYLES) as VoiceStyle[]).map((k) => (
-                    <SelectItem key={k} value={k}>{VOICE_STYLES[k].label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Powered by ElevenLabs. Audio is generated on demand and cached for this narration.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -707,8 +732,11 @@ function StudioPage() {
               variant="secondary"
               className="flex-1 gap-2 transition-transform hover:scale-105 active:scale-95"
               onClick={onPlay}
+              disabled={ttsLoading || !project.narration}
             >
-              {isPlaying ? (
+              {ttsLoading ? (
+                <>Generating voice…</>
+              ) : isPlaying ? (
                 <>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <rect x="6" y="4" width="4" height="16" rx="1" />
@@ -728,7 +756,10 @@ function StudioPage() {
             <Button
               variant="outline"
               className="flex-1"
-              onClick={() => window.speechSynthesis?.cancel()}
+              onClick={() => {
+                stopAudio();
+                setIsPlaying(false);
+              }}
             >
               Stop voice
             </Button>
