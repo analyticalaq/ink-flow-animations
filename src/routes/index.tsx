@@ -7,9 +7,6 @@ import { WhiteboardCanvas, type TimelineItem } from "@/components/WhiteboardCanv
 import { generateTimeline } from "@/lib/generateTimeline.functions";
 import { synthesizeTTS } from "@/lib/tts.functions";
 import { buildTimelineFromScript } from "@/lib/scriptToTimeline";
-import { toCanvas } from "html-to-image";
-import { Muxer as WebmMuxer, ArrayBufferTarget as WebmTarget } from "webm-muxer";
-import { Muxer as Mp4Muxer, ArrayBufferTarget as Mp4Target } from "mp4-muxer";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
