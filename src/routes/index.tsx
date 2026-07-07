@@ -171,9 +171,24 @@ function StudioPage() {
         return;
       }
       audio.currentTime = 0;
+      // Preload so play() resolves instantly and stays in sync with the canvas restart
+      if (audio.readyState < 3) {
+        await new Promise<void>((resolve) => {
+          const done = () => {
+            audio.removeEventListener("canplaythrough", done);
+            resolve();
+          };
+          audio.addEventListener("canplaythrough", done);
+          audio.load();
+          // Safety timeout so we don't hang if the event never fires
+          setTimeout(done, 1500);
+        });
+      }
+      // Remount canvas (resets timeline to t=0) and start audio in the same frame
+      setPlayKey((k) => k + 1);
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
       await audio.play();
       setIsPlaying(true);
-      setPlayKey((k) => k + 1); // restart animation in sync
     } catch (e) {
       console.error(e);
       toast.error("Voiceover failed. Please try again.");
