@@ -557,7 +557,22 @@ function StudioPage() {
           {project.narration ? (
             <div className="rounded-md border bg-muted/40 p-3 text-sm">
               <p className="mb-1 font-medium text-muted-foreground">Narration</p>
-              <p className="text-foreground/90">{project.narration}</p>
+              <p className="text-foreground/90 leading-relaxed">
+                {words.map((w, i) => (
+                  <span
+                    key={i}
+                    className={
+                      i === activeWordIndex
+                        ? "rounded bg-primary/20 text-foreground transition-colors"
+                        : i < activeWordIndex
+                          ? "text-foreground/50 transition-colors"
+                          : "transition-colors"
+                    }
+                  >
+                    {w.text}
+                  </span>
+                ))}
+              </p>
             </div>
           ) : null}
         </section>
