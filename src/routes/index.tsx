@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { WhiteboardCanvas, type TimelineItem } from "@/components/WhiteboardCanvas";
 import { generateTimeline } from "@/lib/generateTimeline.functions";
+import { synthesizeTTS } from "@/lib/tts.functions";
 
 import { buildTimelineFromScript } from "@/lib/scriptToTimeline";
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,7 @@ const ELEVEN_VOICES: Array<{ id: string; label: string }> = [
 
 function StudioPage() {
   const generate = useServerFn(generateTimeline);
+  const tts = useServerFn(synthesizeTTS);
   const [script, setScript] = useState(STARTER_SCRIPT);
   const [style, setStyle] = useState<"explainer" | "story" | "lecture" | "pitch">("explainer");
   const [pacing, setPacing] = useState<Pacing>("normal");
@@ -109,6 +111,76 @@ function StudioPage() {
 
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+  const audioCacheKeyRef = useRef<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [voiceLoading, setVoiceLoading] = useState(false);
+
+  useEffect(() => {
+    // Invalidate cached audio when narration/voice/speed changes
+    audioCacheKeyRef.current = null;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+    setIsPlaying(false);
+  }, [project.narration, voiceId, speed]);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) audioRef.current.pause();
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    };
+  }, []);
+
+  async function ensureAudio(): Promise<HTMLAudioElement | null> {
+    if (!project.narration?.trim()) return null;
+    const key = `${voiceId}|${speed}|${project.narration}`;
+    if (audioRef.current && audioCacheKeyRef.current === key) return audioRef.current;
+    const res = await tts({ data: { text: project.narration, voiceId, speed } });
+    const bin = atob(res.audioBase64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const blob = new Blob([bytes], { type: res.mime });
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    const url = URL.createObjectURL(blob);
+    audioUrlRef.current = url;
+    const audio = new Audio(url);
+    audio.addEventListener("ended", () => setIsPlaying(false));
+    audioRef.current = audio;
+    audioCacheKeyRef.current = key;
+    return audio;
+  }
+
+  async function onPlayVoice() {
+    if (isPlaying) {
+      audioRef.current?.pause();
+      setIsPlaying(false);
+      return;
+    }
+    setVoiceLoading(true);
+    try {
+      const audio = await ensureAudio();
+      if (!audio) {
+        toast.error("No narration to play");
+        return;
+      }
+      audio.currentTime = 0;
+      await audio.play();
+      setIsPlaying(true);
+      setPlayKey((k) => k + 1); // restart animation in sync
+    } catch (e) {
+      console.error(e);
+      toast.error("Voiceover failed. Please try again.");
+    } finally {
+      setVoiceLoading(false);
+    }
+  }
 
   useEffect(() => {
     const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
@@ -391,6 +463,19 @@ function StudioPage() {
             className="w-full"
           >
             Auto-build from script (no AI)
+          </Button>
+
+          <Button
+            onClick={onPlayVoice}
+            disabled={voiceLoading || !project.narration?.trim()}
+            variant="secondary"
+            className="w-full"
+          >
+            {voiceLoading
+              ? "Generating voice…"
+              : isPlaying
+                ? "⏸ Pause voiceover"
+                : "▶ Play voiceover"}
           </Button>
 
 
