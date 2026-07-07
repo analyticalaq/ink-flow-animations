@@ -93,6 +93,13 @@ export interface WhiteboardCanvasProps {
   loop?: boolean;
   className?: string;
   playing?: boolean;
+  /**
+   * When provided, all internal Web Animations are driven from this
+   * external clock (in milliseconds) instead of the browser's own timeline.
+   * Use this to frame-accurately sync drawing with an <audio> element:
+   *   currentTimeMs = audio.currentTime * 1000
+   */
+  currentTimeMs?: number;
 }
 
 const WIDTH = 1920;
@@ -667,15 +674,19 @@ function circlePath(cx: number, cy: number, r: number): string {
   return `M ${cx + r} ${cy} a ${r} ${r} 0 1 1 -${r * 2} 0 a ${r} ${r} 0 1 1 ${r * 2} 0`;
 }
 
-export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, className, playing = true }: WhiteboardCanvasProps) {
+export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, className, playing = true, currentTimeMs }: WhiteboardCanvasProps) {
   const isChalk = mode === "chalk";
   const isSketch = mode === "sketch";
   const ink = isChalk ? "#f5f5f0" : isSketch ? "#1d3557" : "#1a1a1a";
   const bg = isChalk ? "#0f2a1f" : isSketch ? "#fdf6e3" : "#fafaf5";
   const animKey = useMemo(() => uid(), []);
   const svgRef = useRef<SVGSVGElement>(null);
+  const externallyDriven = currentTimeMs !== undefined;
 
   useEffect(() => {
+    // When an external clock drives the timeline, skip the play/pause path —
+    // the currentTime sync effect below owns the animations.
+    if (externallyDriven) return;
     if (!svgRef.current) return;
     const raf = requestAnimationFrame(() => {
       const anims = svgRef.current?.getAnimations({ subtree: true }) ?? [];
@@ -698,7 +709,23 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
       }
     });
     return () => cancelAnimationFrame(raf);
-  }, [playing]);
+  }, [playing, externallyDriven]);
+
+  // Frame-accurate external clock: pause every animation and seek to
+  // the exact audio timestamp on every render.
+  useEffect(() => {
+    if (!externallyDriven) return;
+    if (!svgRef.current) return;
+    const anims = svgRef.current.getAnimations({ subtree: true }) ?? [];
+    for (const a of anims) {
+      try {
+        a.pause();
+        a.currentTime = currentTimeMs ?? 0;
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [currentTimeMs, externallyDriven, timeline]);
 
   // Compute scene boundaries (start delay + clear delay per scene)
   const sceneBounds = useMemo(() => {

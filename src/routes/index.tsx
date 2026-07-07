@@ -116,6 +116,58 @@ function StudioPage() {
   const audioCacheKeyRef = useRef<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [voiceLoading, setVoiceLoading] = useState(false);
+  const [audioTimeMs, setAudioTimeMs] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const rafRef = useRef<number | null>(null);
+
+  // Drive a rAF loop that mirrors audio.currentTime into React state so
+  // the canvas (via currentTimeMs) and the highlighted word stay in lock-step
+  // with the ElevenLabs audio — no drift, no separate timers.
+  useEffect(() => {
+    if (!isPlaying) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      return;
+    }
+    const tick = () => {
+      const a = audioRef.current;
+      if (a) setAudioTimeMs(a.currentTime * 1000);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [isPlaying]);
+
+  // Split narration into words with proportional timings (character-weighted).
+  const words = useMemo(() => {
+    const text = project.narration ?? "";
+    const tokens = text.match(/\S+\s*/g) ?? [];
+    const totalChars = tokens.reduce((n, t) => n + t.length, 0) || 1;
+    // Use audio duration if we have it, otherwise fall back to the timeline's
+    // total duration so highlighting still previews before audio loads.
+    const durSec = audioDuration > 0 ? audioDuration : totalDuration;
+    let acc = 0;
+    return tokens.map((raw) => {
+      const start = (acc / totalChars) * durSec;
+      acc += raw.length;
+      const end = (acc / totalChars) * durSec;
+      return { text: raw, start, end };
+    });
+    // totalDuration is deliberately excluded — highlighting shouldn't jump
+    // when the animation scale changes; the audio's real duration wins.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.narration, audioDuration]);
+
+  const activeWordIndex = useMemo(() => {
+    const t = audioTimeMs / 1000;
+    for (let i = words.length - 1; i >= 0; i--) {
+      if (t >= words[i].start) return i;
+    }
+    return -1;
+  }, [audioTimeMs, words]);
 
   useEffect(() => {
     // Invalidate cached audio when narration/voice/speed changes
@@ -151,7 +203,13 @@ function StudioPage() {
     const url = URL.createObjectURL(blob);
     audioUrlRef.current = url;
     const audio = new Audio(url);
-    audio.addEventListener("ended", () => setIsPlaying(false));
+    audio.addEventListener("ended", () => {
+      setIsPlaying(false);
+      setAudioTimeMs(0);
+    });
+    audio.addEventListener("loadedmetadata", () => {
+      if (isFinite(audio.duration)) setAudioDuration(audio.duration);
+    });
     audioRef.current = audio;
     audioCacheKeyRef.current = key;
     return audio;
@@ -184,6 +242,8 @@ function StudioPage() {
           setTimeout(done, 1500);
         });
       }
+      if (isFinite(audio.duration)) setAudioDuration(audio.duration);
+      setAudioTimeMs(0);
       // Remount canvas (resets timeline to t=0) and start audio in the same frame
       setPlayKey((k) => k + 1);
       await new Promise((r) => requestAnimationFrame(() => r(null)));
@@ -497,7 +557,22 @@ function StudioPage() {
           {project.narration ? (
             <div className="rounded-md border bg-muted/40 p-3 text-sm">
               <p className="mb-1 font-medium text-muted-foreground">Narration</p>
-              <p className="text-foreground/90">{project.narration}</p>
+              <p className="text-foreground/90 leading-relaxed">
+                {words.map((w, i) => (
+                  <span
+                    key={i}
+                    className={
+                      i === activeWordIndex
+                        ? "rounded bg-primary/20 text-foreground transition-colors"
+                        : i < activeWordIndex
+                          ? "text-foreground/50 transition-colors"
+                          : "transition-colors"
+                    }
+                  >
+                    {w.text}
+                  </span>
+                ))}
+              </p>
             </div>
           ) : null}
         </section>
@@ -519,6 +594,8 @@ function StudioPage() {
               key={`${mode}-${playKey}`}
               timeline={scaledItems}
               mode={mode}
+              currentTimeMs={audioTimeMs}
+              playing={isPlaying}
             />
             <div className="absolute right-3 top-3 z-10 flex gap-2">
               <button
