@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { WhiteboardCanvas, type TimelineItem } from "@/components/WhiteboardCanvas";
 import { generateTimeline } from "@/lib/generateTimeline.functions";
 import { synthesizeTTS } from "@/lib/tts.functions";
+import { Play, Pause, RotateCcw } from "lucide-react";
 
 import { buildTimelineFromScript } from "@/lib/scriptToTimeline";
 import { Button } from "@/components/ui/button";
@@ -291,6 +292,41 @@ function StudioPage() {
     }
   }
 
+  async function onRestart() {
+    setVoiceLoading(true);
+    try {
+      const audio = await ensureAudio();
+      if (!audio) return;
+      audio.pause();
+      audio.currentTime = 0;
+      setAudioTimeMs(0);
+      setPlayKey((k) => k + 1);
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      await audio.play();
+      setIsPlaying(true);
+    } catch (e) {
+      console.error(e);
+      toast.error("Restart failed.");
+    } finally {
+      setVoiceLoading(false);
+    }
+  }
+
+  function onSeek(seconds: number) {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const clamped = Math.max(0, Math.min(audioDuration || audio.duration || 0, seconds));
+    audio.currentTime = clamped;
+    setAudioTimeMs(clamped * 1000);
+  }
+
+  function formatTime(sec: number) {
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
   useEffect(() => {
     const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener("fullscreenchange", onChange);
@@ -559,20 +595,6 @@ function StudioPage() {
             Auto-build from script (no AI)
           </Button>
 
-          <Button
-            onClick={onPlayVoice}
-            disabled={voiceLoading || !project.narration?.trim()}
-            variant="secondary"
-            className="w-full"
-          >
-            {voiceLoading
-              ? "Generating voice…"
-              : isPlaying
-                ? "⏸ Pause voiceover"
-                : "▶ Play voiceover"}
-          </Button>
-
-
           {project.narration ? (
             <div className="rounded-md border bg-muted/40 p-3 text-sm">
               <p className="mb-1 font-medium text-muted-foreground">Narration</p>
@@ -635,6 +657,48 @@ function StudioPage() {
                 )}
               </button>
             </div>
+          </div>
+
+          {/* YouTube-style player controls — drives both audio + canvas */}
+          <div className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2 shadow-sm">
+            <button
+              type="button"
+              onClick={onPlayVoice}
+              disabled={voiceLoading || !project.narration?.trim()}
+              aria-label={isPlaying ? "Pause" : "Play"}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
+            >
+              {isPlaying ? <Pause size={16} /> : <Play size={16} className="ml-0.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={onRestart}
+              disabled={voiceLoading || !project.narration?.trim()}
+              aria-label="Restart"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border/50 bg-background text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+            >
+              <RotateCcw size={15} />
+            </button>
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {formatTime(audioTimeMs / 1000)}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={Math.max(0.1, audioDuration || totalDuration)}
+              step={0.05}
+              value={Math.min(audioTimeMs / 1000, audioDuration || totalDuration)}
+              onChange={(e) => onSeek(parseFloat(e.target.value))}
+              disabled={!audioDuration}
+              className="h-1 flex-1 cursor-pointer accent-primary disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Seek"
+            />
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {formatTime(audioDuration || totalDuration)}
+            </span>
+            {voiceLoading ? (
+              <span className="text-[11px] text-muted-foreground">Loading…</span>
+            ) : null}
           </div>
         </section>
       </main>
