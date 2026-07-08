@@ -119,6 +119,7 @@ function StudioPage() {
   const [audioTimeMs, setAudioTimeMs] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const rafRef = useRef<number | null>(null);
+  const autoPlayRef = useRef(false);
 
   // Drive a rAF loop that mirrors audio.currentTime into React state so
   // the canvas (via currentTimeMs) and the highlighted word stay in lock-step
@@ -208,6 +209,20 @@ function StudioPage() {
       if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
     };
   }, []);
+
+  // Auto-play voiceover after Generate/Auto-build so the animation and
+  // narration start together, no extra click needed.
+  useEffect(() => {
+    if (!autoPlayRef.current) return;
+    if (!project.narration?.trim()) return;
+    autoPlayRef.current = false;
+    // Defer to next tick so the canvas remount from setPlayKey settles first.
+    const t = setTimeout(() => {
+      void onPlayVoice();
+    }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project]);
 
   async function ensureAudio(): Promise<HTMLAudioElement | null> {
     if (!project.narration?.trim()) return null;
@@ -310,6 +325,7 @@ function StudioPage() {
         const built = buildTimelineFromScript(script, { durationMinutes, pacing });
         setProject(built);
         setPlayKey((k) => k + 1);
+        autoPlayRef.current = true;
         toast.warning(`${res.error} Built a local animation from your script instead.`);
         return;
       }
@@ -317,6 +333,7 @@ function StudioPage() {
         const built = buildTimelineFromScript(script, { durationMinutes, pacing });
         setProject(built);
         setPlayKey((k) => k + 1);
+        autoPlayRef.current = true;
         toast.warning("AI returned no items — built a local animation from your script instead.");
         return;
       }
@@ -326,6 +343,7 @@ function StudioPage() {
         items: res.items as TimelineItem[],
       });
       setPlayKey((k) => k + 1);
+      autoPlayRef.current = true;
       toast.success("Animation generated");
     } catch (e) {
       console.error(e);
@@ -340,6 +358,7 @@ function StudioPage() {
     const built = buildTimelineFromScript(script, { durationMinutes, pacing });
     setProject(built);
     setPlayKey((k) => k + 1);
+    autoPlayRef.current = true;
     toast.success(`Auto-built ${built.items.filter((i) => i.type === "icon").length} illustrations from your script`);
   }
 
