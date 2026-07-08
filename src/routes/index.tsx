@@ -311,6 +311,7 @@ function StudioPage() {
         const built = buildTimelineFromScript(script, { durationMinutes, pacing });
         setProject(built);
         setPlayKey((k) => k + 1);
+        autoPlayRef.current = true;
         toast.warning(`${res.error} Built a local animation from your script instead.`);
         return;
       }
@@ -318,6 +319,7 @@ function StudioPage() {
         const built = buildTimelineFromScript(script, { durationMinutes, pacing });
         setProject(built);
         setPlayKey((k) => k + 1);
+        autoPlayRef.current = true;
         toast.warning("AI returned no items — built a local animation from your script instead.");
         return;
       }
@@ -342,6 +344,7 @@ function StudioPage() {
     const built = buildTimelineFromScript(script, { durationMinutes, pacing });
     setProject(built);
     setPlayKey((k) => k + 1);
+    autoPlayRef.current = true;
     toast.success(`Auto-built ${built.items.filter((i) => i.type === "icon").length} illustrations from your script`);
   }
 
