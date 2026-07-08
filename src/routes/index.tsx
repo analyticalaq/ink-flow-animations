@@ -141,6 +141,25 @@ function StudioPage() {
     };
   }, [isPlaying]);
 
+  // Scale timeline by speed so the canvas animation matches narration pacing
+  const scaledItems = useMemo<TimelineItem[]>(() => {
+    const f = 1 / speed;
+    return project.items.map((it) => ({
+      ...it,
+      delay: (it.delay ?? 0) * f,
+      duration: (it.duration ?? 1.2) * f,
+    }));
+  }, [project.items, speed]);
+
+  const totalDuration = useMemo(() => {
+    return (
+      scaledItems.reduce((m, it) => {
+        const d = (it.delay ?? 0) + (it.duration ?? 1.2);
+        return Math.max(m, d);
+      }, 0) + 1.5
+    );
+  }, [scaledItems]);
+
   // Split narration into words with proportional timings (character-weighted).
   const words = useMemo(() => {
     const text = project.narration ?? "";
@@ -280,25 +299,6 @@ function StudioPage() {
 
   // Invalidate cached audio whenever narration, voice, or speed changes
 
-
-  // Scale timeline by speed so the canvas animation matches narration pacing
-  const scaledItems = useMemo<TimelineItem[]>(() => {
-    const f = 1 / speed;
-    return project.items.map((it) => ({
-      ...it,
-      delay: (it.delay ?? 0) * f,
-      duration: (it.duration ?? 1.2) * f,
-    }));
-  }, [project.items, speed]);
-
-  const totalDuration = useMemo(() => {
-    return (
-      scaledItems.reduce((m, it) => {
-        const d = (it.delay ?? 0) + (it.duration ?? 1.2);
-        return Math.max(m, d);
-      }, 0) + 1.5
-    );
-  }, [scaledItems]);
 
   async function onGenerate() {
     if (!script.trim()) return;
