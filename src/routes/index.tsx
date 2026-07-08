@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { WhiteboardCanvas, type TimelineItem } from "@/components/WhiteboardCanvas";
 import { generateTimeline } from "@/lib/generateTimeline.functions";
 import { synthesizeTTS } from "@/lib/tts.functions";
+import { Play, Pause, RotateCcw } from "lucide-react";
 
 import { buildTimelineFromScript } from "@/lib/scriptToTimeline";
 import { Button } from "@/components/ui/button";
