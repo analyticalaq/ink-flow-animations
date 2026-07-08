@@ -595,20 +595,6 @@ function StudioPage() {
             Auto-build from script (no AI)
           </Button>
 
-          <Button
-            onClick={onPlayVoice}
-            disabled={voiceLoading || !project.narration?.trim()}
-            variant="secondary"
-            className="w-full"
-          >
-            {voiceLoading
-              ? "Generating voice…"
-              : isPlaying
-                ? "⏸ Pause voiceover"
-                : "▶ Play voiceover"}
-          </Button>
-
-
           {project.narration ? (
             <div className="rounded-md border bg-muted/40 p-3 text-sm">
               <p className="mb-1 font-medium text-muted-foreground">Narration</p>
