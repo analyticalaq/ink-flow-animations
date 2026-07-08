@@ -119,6 +119,7 @@ function StudioPage() {
   const [audioTimeMs, setAudioTimeMs] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const rafRef = useRef<number | null>(null);
+  const autoPlayRef = useRef(false);
 
   // Drive a rAF loop that mirrors audio.currentTime into React state so
   // the canvas (via currentTimeMs) and the highlighted word stay in lock-step
@@ -326,6 +327,7 @@ function StudioPage() {
         items: res.items as TimelineItem[],
       });
       setPlayKey((k) => k + 1);
+      autoPlayRef.current = true;
       toast.success("Animation generated");
     } catch (e) {
       console.error(e);
