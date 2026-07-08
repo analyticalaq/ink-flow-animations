@@ -658,6 +658,48 @@ function StudioPage() {
               </button>
             </div>
           </div>
+
+          {/* YouTube-style player controls — drives both audio + canvas */}
+          <div className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2 shadow-sm">
+            <button
+              type="button"
+              onClick={onPlayVoice}
+              disabled={voiceLoading || !project.narration?.trim()}
+              aria-label={isPlaying ? "Pause" : "Play"}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
+            >
+              {isPlaying ? <Pause size={16} /> : <Play size={16} className="ml-0.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={onRestart}
+              disabled={voiceLoading || !project.narration?.trim()}
+              aria-label="Restart"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border/50 bg-background text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+            >
+              <RotateCcw size={15} />
+            </button>
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {formatTime(audioTimeMs / 1000)}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={Math.max(0.1, audioDuration || totalDuration)}
+              step={0.05}
+              value={Math.min(audioTimeMs / 1000, audioDuration || totalDuration)}
+              onChange={(e) => onSeek(parseFloat(e.target.value))}
+              disabled={!audioDuration}
+              className="h-1 flex-1 cursor-pointer accent-primary disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Seek"
+            />
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {formatTime(audioDuration || totalDuration)}
+            </span>
+            {voiceLoading ? (
+              <span className="text-[11px] text-muted-foreground">Loading…</span>
+            ) : null}
+          </div>
         </section>
       </main>
     </div>
