@@ -292,6 +292,41 @@ function StudioPage() {
     }
   }
 
+  async function onRestart() {
+    setVoiceLoading(true);
+    try {
+      const audio = await ensureAudio();
+      if (!audio) return;
+      audio.pause();
+      audio.currentTime = 0;
+      setAudioTimeMs(0);
+      setPlayKey((k) => k + 1);
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      await audio.play();
+      setIsPlaying(true);
+    } catch (e) {
+      console.error(e);
+      toast.error("Restart failed.");
+    } finally {
+      setVoiceLoading(false);
+    }
+  }
+
+  function onSeek(seconds: number) {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const clamped = Math.max(0, Math.min(audioDuration || audio.duration || 0, seconds));
+    audio.currentTime = clamped;
+    setAudioTimeMs(clamped * 1000);
+  }
+
+  function formatTime(sec: number) {
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
   useEffect(() => {
     const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener("fullscreenchange", onChange);
