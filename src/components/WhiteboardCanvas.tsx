@@ -1,4 +1,31 @@
 import { useMemo, useState, useEffect, useRef } from "react";
+import rough from "roughjs/bin/rough";
+
+const roughGen = rough.generator();
+
+/** Convert a rough.js opSet into an SVG path `d` string. */
+function opsToPath(ops: Array<{ op: string; data: number[] }>): string {
+  let d = "";
+  for (const { op, data } of ops) {
+    if (op === "move") d += `M ${data[0]} ${data[1]} `;
+    else if (op === "lineTo") d += `L ${data[0]} ${data[1]} `;
+    else if (op === "bcurveTo")
+      d += `C ${data[0]} ${data[1]} ${data[2]} ${data[3]} ${data[4]} ${data[5]} `;
+    else if (op === "qcurveTo")
+      d += `Q ${data[0]} ${data[1]} ${data[2]} ${data[3]} `;
+  }
+  return d.trim();
+}
+
+/** Build sketchy multi-stroke path segments for a shape via rough.js. */
+function roughPaths(
+  build: (gen: typeof roughGen) => ReturnType<typeof roughGen.circle>,
+): string[] {
+  const drawable = build(roughGen);
+  return drawable.sets
+    .filter((s) => s.type === "path")
+    .map((s) => opsToPath(s.ops));
+}
 
 export type IconName =
   | "brain" | "bulb" | "box" | "stick" | "chart" | "star"
