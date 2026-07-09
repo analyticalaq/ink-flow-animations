@@ -1,4 +1,31 @@
 import { useMemo, useState, useEffect, useRef } from "react";
+import rough from "roughjs/bin/rough";
+
+const roughGen = rough.generator();
+
+/** Convert a rough.js opSet into an SVG path `d` string. */
+function opsToPath(ops: Array<{ op: string; data: number[] }>): string {
+  let d = "";
+  for (const { op, data } of ops) {
+    if (op === "move") d += `M ${data[0]} ${data[1]} `;
+    else if (op === "lineTo") d += `L ${data[0]} ${data[1]} `;
+    else if (op === "bcurveTo")
+      d += `C ${data[0]} ${data[1]} ${data[2]} ${data[3]} ${data[4]} ${data[5]} `;
+    else if (op === "qcurveTo")
+      d += `Q ${data[0]} ${data[1]} ${data[2]} ${data[3]} `;
+  }
+  return d.trim();
+}
+
+/** Build sketchy multi-stroke path segments for a shape via rough.js. */
+function roughPaths(
+  build: (gen: typeof roughGen) => ReturnType<typeof roughGen.circle>,
+): string[] {
+  const drawable = build(roughGen);
+  return drawable.sets
+    .filter((s) => s.type === "path")
+    .map((s) => opsToPath(s.ops));
+}
 
 export type IconName =
   | "brain" | "bulb" | "box" | "stick" | "chart" | "star"
@@ -996,39 +1023,61 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           }
 
           if (item.type === "arrow") {
-            const d = arrowPath(item.from, item.to, item.curve ?? 0.12);
+            const [x1, y1] = item.from;
+            const [x2, y2] = item.to;
+            const curve = item.curve ?? 0.12;
+            const mx = (x1 + x2) / 2;
+            const my = (y1 + y2) / 2;
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const cx = mx - dy * curve;
+            const cy = my + dx * curve;
+            const angle = Math.atan2(y2 - cy, x2 - cx);
+            const headLen = 26;
+            const hx1 = x2 - headLen * Math.cos(angle - Math.PI / 7);
+            const hy1 = y2 - headLen * Math.sin(angle - Math.PI / 7);
+            const hx2 = x2 - headLen * Math.cos(angle + Math.PI / 7);
+            const hy2 = y2 - headLen * Math.sin(angle + Math.PI / 7);
+            const roughOpts = { roughness: 1.6, bowing: 2, stroke: ink, strokeWidth: 3, seed: (Math.abs(x1 * 31 + y1 * 17 + x2 * 7 + y2) | 0) + 1 };
+            const shaftPaths = roughPaths((g) => g.curve([[x1, y1], [cx, cy], [x2, y2]] as [number, number][], roughOpts));
+            const head1 = roughPaths((g) => g.line(x2, y2, hx1, hy1, roughOpts));
+            const head2 = roughPaths((g) => g.line(x2, y2, hx2, hy2, roughOpts));
+            const allPaths = [...shaftPaths, ...head1, ...head2];
             return (
               <g key={key} className={groupClass} style={groupStyle}>
                 <circle cx={item.from[0]} cy={item.from[1]} r={5} fill={ink}
                   className={`wb-blob-${animKey}`}
                   style={{ ["--delay" as string]: `${delay}s` } as React.CSSProperties} />
-                <path d={d} fill="none" stroke={ink} strokeWidth={4}
-                  strokeLinecap="round" strokeLinejoin="round"
-                  pathLength={1000}
-                  className={`wb-path-${animKey}`}
-                  filter={(isChalk || isSketch) ? `url(#wb-rough-${animKey})` : undefined}
-                  style={{
-                    ["--len" as string]: "1000",
-                    ["--delay" as string]: `${delay}s`,
-                    ["--dur" as string]: `${duration}s`,
-                  } as React.CSSProperties} />
+                {allPaths.map((d, pi) => (
+                  <path key={pi} d={d} fill="none" stroke={ink} strokeWidth={3}
+                    strokeLinecap="round" strokeLinejoin="round"
+                    pathLength={1000}
+                    className={`wb-path-${animKey}`}
+                    style={{
+                      ["--len" as string]: "1000",
+                      ["--delay" as string]: `${delay + (pi * (duration * 0.05))}s`,
+                      ["--dur" as string]: `${duration}s`,
+                    } as React.CSSProperties} />
+                ))}
               </g>
             );
           }
 
           if (item.type === "circle") {
-            const d = circlePath(item.x, item.y, item.r);
+            const roughOpts = { roughness: 1.8, bowing: 1, stroke: item.color ?? ink, strokeWidth: 3, seed: (Math.abs(item.x * 13 + item.y * 7 + item.r) | 0) + 1 };
+            const paths = roughPaths((g) => g.circle(item.x, item.y, item.r * 2, roughOpts));
             return (
               <g key={key} className={groupClass} style={groupStyle}>
-                <path d={d} fill="none" stroke={item.color ?? ink} strokeWidth={4}
-                  strokeLinecap="round" pathLength={1000}
-                  className={`wb-path-${animKey}`}
-                  filter={(isChalk || isSketch) ? `url(#wb-rough-${animKey})` : undefined}
-                  style={{
-                    ["--len" as string]: "1000",
-                    ["--delay" as string]: `${delay}s`,
-                    ["--dur" as string]: `${duration}s`,
-                  } as React.CSSProperties} />
+                {paths.map((d, pi) => (
+                  <path key={pi} d={d} fill="none" stroke={item.color ?? ink} strokeWidth={3}
+                    strokeLinecap="round" pathLength={1000}
+                    className={`wb-path-${animKey}`}
+                    style={{
+                      ["--len" as string]: "1000",
+                      ["--delay" as string]: `${delay + (pi * (duration * 0.05))}s`,
+                      ["--dur" as string]: `${duration}s`,
+                    } as React.CSSProperties} />
+                ))}
               </g>
             );
           }
@@ -1036,19 +1085,20 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           if (item.type === "underline") {
             const [x1, y1] = item.from;
             const [x2, y2] = item.to;
-            const mx = (x1 + x2) / 2;
-            const my = (y1 + y2) / 2 + 6;
-            const d = `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`;
+            const roughOpts = { roughness: 2, bowing: 3, stroke: ink, strokeWidth: 4, seed: (Math.abs(x1 * 3 + y1 * 5 + x2 * 7 + y2) | 0) + 1 };
+            const paths = roughPaths((g) => g.line(x1, y1, x2, y2, roughOpts));
             return (
               <g key={key} className={groupClass} style={groupStyle}>
-                <path d={d} fill="none" stroke={ink} strokeWidth={5}
-                  strokeLinecap="round" pathLength={1000}
-                  className={`wb-path-${animKey}`}
-                  style={{
-                    ["--len" as string]: "1000",
-                    ["--delay" as string]: `${delay}s`,
-                    ["--dur" as string]: `${duration}s`,
-                  } as React.CSSProperties} />
+                {paths.map((d, pi) => (
+                  <path key={pi} d={d} fill="none" stroke={ink} strokeWidth={4}
+                    strokeLinecap="round" pathLength={1000}
+                    className={`wb-path-${animKey}`}
+                    style={{
+                      ["--len" as string]: "1000",
+                      ["--delay" as string]: `${delay + (pi * (duration * 0.05))}s`,
+                      ["--dur" as string]: `${duration}s`,
+                    } as React.CSSProperties} />
+                ))}
               </g>
             );
           }
