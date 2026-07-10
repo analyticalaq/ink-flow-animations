@@ -119,6 +119,12 @@ function StudioPage() {
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [audioTimeMs, setAudioTimeMs] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  const [alignment, setAlignment] = useState<{
+    characters: string[];
+    character_start_times_seconds: number[];
+    character_end_times_seconds: number[];
+  } | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
   const rafRef = useRef<number | null>(null);
   const autoPlayRef = useRef(false);
 
@@ -166,11 +172,63 @@ function StudioPage() {
       audioDuration > 0 ? audioDuration : rawTimelineDuration / Math.max(0.5, speed);
 
     // Split into sentence-ish chunks, keep punctuation, drop empties.
-    const sentences = text
-      ? (text.match(/[^.!?]+[.!?]+["')\]]*|\S+[^.!?]*$/g) ?? [text])
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : [];
+    const sentenceRegex = /[^.!?]+[.!?]+["')\]]*|\S+[^.!?]*$/g;
+    const sentenceMatches = text ? Array.from(text.matchAll(sentenceRegex)) : [];
+    const sentences = sentenceMatches.map((m) => m[0].trim()).filter(Boolean);
+
+    // If we have real ElevenLabs char-level timestamps, use them: map each
+    // sentence to its actual spoken [start,end] in the audio, then bucket
+    // sentences into scenes evenly and derive precise scene windows.
+    if (alignment && text && sentenceMatches.length > 0) {
+      const chars = alignment.characters;
+      const starts = alignment.character_start_times_seconds;
+      const ends = alignment.character_end_times_seconds;
+      // Walk narration and alignment simultaneously to build a char→time map.
+      const charTime: Array<{ start: number; end: number } | null> = new Array(
+        text.length,
+      ).fill(null);
+      let ai = 0;
+      for (let ti = 0; ti < text.length && ai < chars.length; ti++) {
+        // Advance alignment past chars that don't match narration char.
+        while (ai < chars.length && chars[ai] !== text[ti]) ai++;
+        if (ai < chars.length) {
+          charTime[ti] = { start: starts[ai], end: ends[ai] };
+          ai++;
+        }
+      }
+      const sentenceTimes = sentenceMatches.map((m) => {
+        const s = m.index ?? 0;
+        const e = s + m[0].length - 1;
+        let sStart: number | null = null;
+        let sEnd: number | null = null;
+        for (let i = s; i <= e; i++) {
+          const ct = charTime[i];
+          if (ct) {
+            if (sStart === null) sStart = ct.start;
+            sEnd = ct.end;
+          }
+        }
+        return { start: sStart ?? 0, end: sEnd ?? durSec };
+      });
+      // Group sentences into scenes.
+      const step = sentences.length / scenes.length;
+      const groups: Array<Array<{ start: number; end: number }>> = scenes.map(() => []);
+      sentenceTimes.forEach((st, i) => {
+        const idx = Math.min(scenes.length - 1, Math.floor(i / step));
+        groups[idx].push(st);
+      });
+      const bounds = new Map<number, { start: number; end: number }>();
+      let prevEnd = 0;
+      scenes.forEach((sceneId, i) => {
+        const g = groups[i];
+        let s = g.length ? g[0].start : prevEnd;
+        let e = g.length ? g[g.length - 1].end : s + 1;
+        if (e <= s) e = s + 1;
+        bounds.set(sceneId, { start: s, end: e });
+        prevEnd = e;
+      });
+      return bounds;
+    }
 
     // Distribute sentences across scenes as evenly as possible, then measure
     // each scene's weight by character count so longer sentences get more time.
@@ -199,7 +257,7 @@ function StudioPage() {
       acc += share;
     });
     return bounds;
-  }, [project.items, project.narration, audioDuration, rawTimelineDuration, speed]);
+  }, [project.items, project.narration, audioDuration, rawTimelineDuration, speed, alignment]);
 
   // Retime every item so it plays inside its scene's real audio window.
   const scaledItems = useMemo<TimelineItem[]>(() => {
