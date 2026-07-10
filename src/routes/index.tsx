@@ -342,6 +342,8 @@ function StudioPage() {
   useEffect(() => {
     // Invalidate cached audio when narration/voice/speed changes
     audioCacheKeyRef.current = null;
+    setAlignment(null);
+    setAudioDuration(0);
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
@@ -379,6 +381,7 @@ function StudioPage() {
     const key = `${voiceId}|${speed}|${project.narration}`;
     if (audioRef.current && audioCacheKeyRef.current === key) return audioRef.current;
     const res = await tts({ data: { text: project.narration, voiceId, speed } });
+    setAlignment(res.alignment ?? null);
     const bin = atob(res.audioBase64);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
