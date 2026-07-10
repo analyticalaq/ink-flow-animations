@@ -119,6 +119,12 @@ function StudioPage() {
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [audioTimeMs, setAudioTimeMs] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  const [alignment, setAlignment] = useState<{
+    characters: string[];
+    character_start_times_seconds: number[];
+    character_end_times_seconds: number[];
+  } | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
   const rafRef = useRef<number | null>(null);
   const autoPlayRef = useRef(false);
 
@@ -166,11 +172,63 @@ function StudioPage() {
       audioDuration > 0 ? audioDuration : rawTimelineDuration / Math.max(0.5, speed);
 
     // Split into sentence-ish chunks, keep punctuation, drop empties.
-    const sentences = text
-      ? (text.match(/[^.!?]+[.!?]+["')\]]*|\S+[^.!?]*$/g) ?? [text])
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : [];
+    const sentenceRegex = /[^.!?]+[.!?]+["')\]]*|\S+[^.!?]*$/g;
+    const sentenceMatches = text ? Array.from(text.matchAll(sentenceRegex)) : [];
+    const sentences = sentenceMatches.map((m) => m[0].trim()).filter(Boolean);
+
+    // If we have real ElevenLabs char-level timestamps, use them: map each
+    // sentence to its actual spoken [start,end] in the audio, then bucket
+    // sentences into scenes evenly and derive precise scene windows.
+    if (alignment && text && sentenceMatches.length > 0) {
+      const chars = alignment.characters;
+      const starts = alignment.character_start_times_seconds;
+      const ends = alignment.character_end_times_seconds;
+      // Walk narration and alignment simultaneously to build a char→time map.
+      const charTime: Array<{ start: number; end: number } | null> = new Array(
+        text.length,
+      ).fill(null);
+      let ai = 0;
+      for (let ti = 0; ti < text.length && ai < chars.length; ti++) {
+        // Advance alignment past chars that don't match narration char.
+        while (ai < chars.length && chars[ai] !== text[ti]) ai++;
+        if (ai < chars.length) {
+          charTime[ti] = { start: starts[ai], end: ends[ai] };
+          ai++;
+        }
+      }
+      const sentenceTimes = sentenceMatches.map((m) => {
+        const s = m.index ?? 0;
+        const e = s + m[0].length - 1;
+        let sStart: number | null = null;
+        let sEnd: number | null = null;
+        for (let i = s; i <= e; i++) {
+          const ct = charTime[i];
+          if (ct) {
+            if (sStart === null) sStart = ct.start;
+            sEnd = ct.end;
+          }
+        }
+        return { start: sStart ?? 0, end: sEnd ?? durSec };
+      });
+      // Group sentences into scenes.
+      const step = sentences.length / scenes.length;
+      const groups: Array<Array<{ start: number; end: number }>> = scenes.map(() => []);
+      sentenceTimes.forEach((st, i) => {
+        const idx = Math.min(scenes.length - 1, Math.floor(i / step));
+        groups[idx].push(st);
+      });
+      const bounds = new Map<number, { start: number; end: number }>();
+      let prevEnd = 0;
+      scenes.forEach((sceneId, i) => {
+        const g = groups[i];
+        let s = g.length ? g[0].start : prevEnd;
+        let e = g.length ? g[g.length - 1].end : s + 1;
+        if (e <= s) e = s + 1;
+        bounds.set(sceneId, { start: s, end: e });
+        prevEnd = e;
+      });
+      return bounds;
+    }
 
     // Distribute sentences across scenes as evenly as possible, then measure
     // each scene's weight by character count so longer sentences get more time.
@@ -199,7 +257,7 @@ function StudioPage() {
       acc += share;
     });
     return bounds;
-  }, [project.items, project.narration, audioDuration, rawTimelineDuration, speed]);
+  }, [project.items, project.narration, audioDuration, rawTimelineDuration, speed, alignment]);
 
   // Retime every item so it plays inside its scene's real audio window.
   const scaledItems = useMemo<TimelineItem[]>(() => {
@@ -284,6 +342,8 @@ function StudioPage() {
   useEffect(() => {
     // Invalidate cached audio when narration/voice/speed changes
     audioCacheKeyRef.current = null;
+    setAlignment(null);
+    setAudioDuration(0);
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
@@ -321,6 +381,7 @@ function StudioPage() {
     const key = `${voiceId}|${speed}|${project.narration}`;
     if (audioRef.current && audioCacheKeyRef.current === key) return audioRef.current;
     const res = await tts({ data: { text: project.narration, voiceId, speed } });
+    setAlignment(res.alignment ?? null);
     const bin = atob(res.audioBase64);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -732,6 +793,20 @@ function StudioPage() {
             <div className="absolute right-3 top-3 z-10 flex gap-2">
               <button
                 type="button"
+                onClick={() => setShowDebug((v) => !v)}
+                aria-label="Toggle debug overlay"
+                title="Toggle debug overlay"
+                className={`rounded-md border border-border/40 p-2 shadow-sm backdrop-blur transition-all hover:scale-105 active:scale-95 ${
+                  showDebug ? "bg-primary text-primary-foreground" : "bg-background/70 text-foreground hover:bg-background"
+                }`}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 8v4l2 2" />
+                </svg>
+              </button>
+              <button
+                type="button"
                 onClick={toggleFullscreen}
                 aria-label={isFullscreen ? "Exit fullscreen" : "Maximize"}
                 title={isFullscreen ? "Exit fullscreen (Esc)" : "Maximize"}
@@ -748,6 +823,49 @@ function StudioPage() {
                 )}
               </button>
             </div>
+            {showDebug ? (
+              <div className="pointer-events-none absolute left-3 top-3 z-10 max-h-[85%] w-[300px] overflow-auto rounded-md border border-border/50 bg-background/85 p-2 font-mono text-[10px] leading-tight text-foreground shadow-md backdrop-blur">
+                <div className="mb-1 flex items-center justify-between text-[11px]">
+                  <span className="font-semibold">Debug</span>
+                  <span className="tabular-nums">
+                    t={formatTime(audioTimeMs / 1000)} / {formatTime(audioDuration || totalDuration)}
+                  </span>
+                </div>
+                <div className="mb-1 text-muted-foreground">
+                  align: {alignment ? "elevenlabs timestamps" : "sentence estimate"} · items: {scaledItems.length}
+                </div>
+                <table className="w-full">
+                  <thead className="text-muted-foreground">
+                    <tr>
+                      <th className="text-left">scene</th>
+                      <th className="text-right">start</th>
+                      <th className="text-right">end</th>
+                      <th className="text-right">dur</th>
+                      <th className="text-right">items</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from(sceneBounds.entries()).map(([sid, b]) => {
+                      const t = audioTimeMs / 1000;
+                      const active = t >= b.start && t < b.end;
+                      const count = scaledItems.filter((it) => (it.scene ?? 0) === sid).length;
+                      return (
+                        <tr
+                          key={sid}
+                          className={active ? "bg-primary/20 font-semibold" : ""}
+                        >
+                          <td>#{sid}</td>
+                          <td className="text-right tabular-nums">{b.start.toFixed(2)}s</td>
+                          <td className="text-right tabular-nums">{b.end.toFixed(2)}s</td>
+                          <td className="text-right tabular-nums">{(b.end - b.start).toFixed(2)}s</td>
+                          <td className="text-right tabular-nums">{count}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
           </div>
 
           {/* YouTube-style player controls — drives both audio + canvas */}
