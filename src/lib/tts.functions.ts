@@ -19,7 +19,7 @@ export const synthesizeTTS = createServerFn({ method: "POST" })
     if (!apiKey) throw new Error("ElevenLabs is not connected to this project");
 
     const res = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${data.voiceId}?output_format=mp3_44100_128`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${data.voiceId}/with-timestamps?output_format=mp3_44100_128`,
       {
         method: "POST",
         headers: {
@@ -45,7 +45,17 @@ export const synthesizeTTS = createServerFn({ method: "POST" })
       throw new Error(err || `ElevenLabs TTS failed: ${res.status}`);
     }
 
-    const buf = await res.arrayBuffer();
-    const audioBase64 = Buffer.from(buf).toString("base64");
-    return { audioBase64, mime: "audio/mpeg" };
+    const json = (await res.json()) as {
+      audio_base64: string;
+      alignment?: {
+        characters: string[];
+        character_start_times_seconds: number[];
+        character_end_times_seconds: number[];
+      } | null;
+    };
+    return {
+      audioBase64: json.audio_base64,
+      mime: "audio/mpeg",
+      alignment: json.alignment ?? null,
+    };
   });
