@@ -793,6 +793,20 @@ function StudioPage() {
             <div className="absolute right-3 top-3 z-10 flex gap-2">
               <button
                 type="button"
+                onClick={() => setShowDebug((v) => !v)}
+                aria-label="Toggle debug overlay"
+                title="Toggle debug overlay"
+                className={`rounded-md border border-border/40 p-2 shadow-sm backdrop-blur transition-all hover:scale-105 active:scale-95 ${
+                  showDebug ? "bg-primary text-primary-foreground" : "bg-background/70 text-foreground hover:bg-background"
+                }`}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 8v4l2 2" />
+                </svg>
+              </button>
+              <button
+                type="button"
                 onClick={toggleFullscreen}
                 aria-label={isFullscreen ? "Exit fullscreen" : "Maximize"}
                 title={isFullscreen ? "Exit fullscreen (Esc)" : "Maximize"}
@@ -809,6 +823,49 @@ function StudioPage() {
                 )}
               </button>
             </div>
+            {showDebug ? (
+              <div className="pointer-events-none absolute left-3 top-3 z-10 max-h-[85%] w-[300px] overflow-auto rounded-md border border-border/50 bg-background/85 p-2 font-mono text-[10px] leading-tight text-foreground shadow-md backdrop-blur">
+                <div className="mb-1 flex items-center justify-between text-[11px]">
+                  <span className="font-semibold">Debug</span>
+                  <span className="tabular-nums">
+                    t={formatTime(audioTimeMs / 1000)} / {formatTime(audioDuration || totalDuration)}
+                  </span>
+                </div>
+                <div className="mb-1 text-muted-foreground">
+                  align: {alignment ? "elevenlabs timestamps" : "sentence estimate"} · items: {scaledItems.length}
+                </div>
+                <table className="w-full">
+                  <thead className="text-muted-foreground">
+                    <tr>
+                      <th className="text-left">scene</th>
+                      <th className="text-right">start</th>
+                      <th className="text-right">end</th>
+                      <th className="text-right">dur</th>
+                      <th className="text-right">items</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from(sceneBounds.entries()).map(([sid, b]) => {
+                      const t = audioTimeMs / 1000;
+                      const active = t >= b.start && t < b.end;
+                      const count = scaledItems.filter((it) => (it.scene ?? 0) === sid).length;
+                      return (
+                        <tr
+                          key={sid}
+                          className={active ? "bg-primary/20 font-semibold" : ""}
+                        >
+                          <td>#{sid}</td>
+                          <td className="text-right tabular-nums">{b.start.toFixed(2)}s</td>
+                          <td className="text-right tabular-nums">{b.end.toFixed(2)}s</td>
+                          <td className="text-right tabular-nums">{(b.end - b.start).toFixed(2)}s</td>
+                          <td className="text-right tabular-nums">{count}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
           </div>
 
           {/* YouTube-style player controls — drives both audio + canvas */}
