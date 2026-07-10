@@ -143,24 +143,115 @@ function StudioPage() {
     };
   }, [isPlaying]);
 
-  // Scale timeline by speed so the canvas animation matches narration pacing
-  const scaledItems = useMemo<TimelineItem[]>(() => {
-    const f = 1 / speed;
-    return project.items.map((it) => ({
-      ...it,
-      delay: (it.delay ?? 0) * f,
-      duration: (it.duration ?? 1.2) * f,
-    }));
-  }, [project.items, speed]);
-
-  const totalDuration = useMemo(() => {
+  // Original timeline length (before we retime to the real audio duration)
+  const rawTimelineDuration = useMemo(() => {
     return (
-      scaledItems.reduce((m, it) => {
+      project.items.reduce((m, it) => {
         const d = (it.delay ?? 0) + (it.duration ?? 1.2);
         return Math.max(m, d);
       }, 0) + 1.5
     );
-  }, [scaledItems]);
+  }, [project.items]);
+
+  // Split the narration into sentences and bucket them across the scenes
+  // present in items[] — this is what ties the visuals to what's being said.
+  const sceneBounds = useMemo(() => {
+    const scenes = Array.from(
+      new Set(project.items.map((it) => it.scene ?? 0)),
+    ).sort((a, b) => a - b);
+    if (scenes.length === 0) return new Map<number, { start: number; end: number }>();
+
+    const text = (project.narration ?? "").trim();
+    const durSec =
+      audioDuration > 0 ? audioDuration : rawTimelineDuration / Math.max(0.5, speed);
+
+    // Split into sentence-ish chunks, keep punctuation, drop empties.
+    const sentences = text
+      ? (text.match(/[^.!?]+[.!?]+["')\]]*|\S+[^.!?]*$/g) ?? [text])
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+
+    // Distribute sentences across scenes as evenly as possible, then measure
+    // each scene's weight by character count so longer sentences get more time.
+    const perScene: string[] = scenes.map(() => "");
+    if (sentences.length > 0) {
+      const step = sentences.length / scenes.length;
+      sentences.forEach((s, i) => {
+        const idx = Math.min(scenes.length - 1, Math.floor(i / step));
+        perScene[idx] = (perScene[idx] ? perScene[idx] + " " : "") + s;
+      });
+      // Ensure no scene is empty — steal from the previous one.
+      for (let i = 0; i < perScene.length; i++) {
+        if (!perScene[i] && i > 0) perScene[i] = perScene[i - 1].slice(-40);
+      }
+    }
+
+    // Fallback weights if narration is missing: even split.
+    const weights = perScene.map((s) => Math.max(1, s.length));
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+    const bounds = new Map<number, { start: number; end: number }>();
+    let acc = 0;
+    scenes.forEach((sceneId, i) => {
+      const share = (weights[i] / totalWeight) * durSec;
+      bounds.set(sceneId, { start: acc, end: acc + share });
+      acc += share;
+    });
+    return bounds;
+  }, [project.items, project.narration, audioDuration, rawTimelineDuration, speed]);
+
+  // Retime every item so it plays inside its scene's real audio window.
+  const scaledItems = useMemo<TimelineItem[]>(() => {
+    if (sceneBounds.size === 0) return project.items;
+
+    // Group items by scene and rescale their local [minDelay, maxEnd] into
+    // [sceneStart, sceneEnd - tail] so visuals appear as words are spoken.
+    const bySceneRange = new Map<number, { lo: number; hi: number }>();
+    project.items.forEach((it) => {
+      const s = it.scene ?? 0;
+      const start = it.delay ?? 0;
+      const end = start + (it.duration ?? 1.2);
+      const cur = bySceneRange.get(s);
+      if (!cur) bySceneRange.set(s, { lo: start, hi: end });
+      else {
+        cur.lo = Math.min(cur.lo, start);
+        cur.hi = Math.max(cur.hi, end);
+      }
+    });
+
+    return project.items.map((it) => {
+      const sceneId = it.scene ?? 0;
+      const b = sceneBounds.get(sceneId);
+      const r = bySceneRange.get(sceneId);
+      if (!b || !r) return it;
+
+      const sceneWindow = Math.max(0.5, b.end - b.start);
+      const localSpan = Math.max(0.001, r.hi - r.lo);
+      // Leave a small tail inside each scene so the last stroke finishes
+      // before we hand off to the next spoken line.
+      const usable = Math.max(0.5, sceneWindow - 0.4);
+      const scale = usable / localSpan;
+
+      const localDelay = (it.delay ?? 0) - r.lo;
+      const newDelay = b.start + localDelay * scale;
+      const newDuration = Math.max(0.3, (it.duration ?? 1.2) * scale);
+
+      return { ...it, delay: newDelay, duration: newDuration };
+    });
+  }, [project.items, sceneBounds]);
+
+  const totalDuration = useMemo(() => {
+    // Prefer audio duration once known so the seek bar and word highlighting
+    // match the actual voiceover, not the raw item timeline.
+    if (audioDuration > 0) return audioDuration;
+    return (
+      scaledItems.reduce((m, it) => {
+        const d = (it.delay ?? 0) + (it.duration ?? 1.2);
+        return Math.max(m, d);
+      }, 0) + 0.8
+    );
+  }, [scaledItems, audioDuration]);
 
   // Split narration into words with proportional timings (character-weighted).
   const words = useMemo(() => {
