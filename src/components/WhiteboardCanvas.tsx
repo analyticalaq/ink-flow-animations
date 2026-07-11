@@ -900,6 +900,12 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           animation: wb-fade-${animKey} 0.25s linear var(--delay, 0s) forwards;
           font-family: ${isChalk ? "'Patrick Hand', cursive" : "'Caveat', cursive"};
           fill: ${ink};
+          filter: url(#wb-rough-text-${animKey});
+          paint-order: stroke fill;
+          stroke: ${ink};
+          stroke-width: 0.6;
+          stroke-linejoin: round;
+          letter-spacing: 0.02em;
         }
         .wb-text-clip-${animKey} rect {
           animation: wb-text-sweep-${animKey} var(--dur, 1s) linear var(--delay, 0s) forwards;
@@ -920,6 +926,10 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           <filter id={`wb-rough-${animKey}`}>
             <feTurbulence baseFrequency="0.9" numOctaves="2" seed="3" />
             <feDisplacementMap in="SourceGraphic" scale="1.2" />
+          </filter>
+          <filter id={`wb-rough-text-${animKey}`} x="-5%" y="-5%" width="110%" height="110%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.025" numOctaves="2" seed="7" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.4" xChannelSelector="R" yChannelSelector="G" />
           </filter>
         </defs>
 
