@@ -878,6 +878,11 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
         @keyframes wb-fade-${animKey} { to { opacity: 1; } }
         @keyframes wb-fadeout-${animKey} { to { opacity: 0; } }
         @keyframes wb-text-sweep-${animKey} { to { width: ${WIDTH}px; } }
+        @keyframes wb-text-draw-${animKey} {
+          0%   { stroke-dashoffset: 2000; fill-opacity: 0; opacity: 1; }
+          70%  { stroke-dashoffset: 0;    fill-opacity: 0; }
+          100% { stroke-dashoffset: 0;    fill-opacity: 1; }
+        }
         .wb-path-${animKey} {
           stroke-dasharray: var(--len);
           stroke-dashoffset: var(--len);
@@ -897,14 +902,18 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
         }
         .wb-text-${animKey} {
           opacity: 0;
-          animation: wb-fade-${animKey} 0.25s linear var(--delay, 0s) forwards;
+          fill-opacity: 0;
+          stroke-dasharray: 2000;
+          stroke-dashoffset: 2000;
+          animation: wb-text-draw-${animKey} var(--dur, 1s) ease-in-out var(--delay, 0s) forwards;
           font-family: ${isChalk ? "'Patrick Hand', cursive" : "'Caveat', cursive"};
           fill: ${ink};
           filter: url(#wb-rough-text-${animKey});
           paint-order: stroke fill;
           stroke: ${ink};
-          stroke-width: 0.6;
+          stroke-width: 1;
           stroke-linejoin: round;
+          stroke-linecap: round;
           letter-spacing: 0.02em;
         }
         .wb-text-clip-${animKey} rect {
