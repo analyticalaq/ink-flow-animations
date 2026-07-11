@@ -27,6 +27,52 @@ function roughPaths(
     .map((s) => opsToPath(s.ops));
 }
 
+/**
+ * Turn any SVG path `d` into an Excalidraw-style sketchy set of strokes.
+ * Includes both the wobbly outline AND hachure fill lines (in the fill color),
+ * so we can animate them all with stroke-dashoffset for a hand-drawn build-up.
+ */
+function roughSketchStrokes(
+  d: string,
+  opts: {
+    fill?: string;
+    stroke?: string;
+    strokeWidth?: number;
+    seed: number;
+    roughness?: number;
+  },
+): Array<{ d: string; stroke: string; width: number }> {
+  let drawable;
+  try {
+    drawable = roughGen.path(d, {
+      fill: opts.fill,
+      fillStyle: opts.fill ? "hachure" : undefined,
+      hachureGap: 9,
+      hachureAngle: 41,
+      fillWeight: 1.8,
+      stroke: opts.stroke ?? "#00000000",
+      strokeWidth: opts.strokeWidth ?? 2,
+      roughness: opts.roughness ?? 1.3,
+      bowing: 1,
+      seed: opts.seed,
+      disableMultiStroke: false,
+    });
+  } catch {
+    return [{ d, stroke: opts.stroke ?? opts.fill ?? "#1a1a1a", width: opts.strokeWidth ?? 2 }];
+  }
+  const out: Array<{ d: string; stroke: string; width: number }> = [];
+  for (const set of drawable.sets) {
+    const path = opsToPath(set.ops);
+    if (!path) continue;
+    if (set.type === "fillSketch" && opts.fill) {
+      out.push({ d: path, stroke: opts.fill, width: 1.6 });
+    } else if (set.type === "path" && opts.stroke) {
+      out.push({ d: path, stroke: opts.stroke, width: opts.strokeWidth ?? 2.4 });
+    }
+  }
+  return out;
+}
+
 export type IconName =
   | "brain" | "bulb" | "box" | "stick" | "chart" | "star"
   | "ship" | "mountain" | "castle" | "mosque" | "crown"
