@@ -27,6 +27,52 @@ function roughPaths(
     .map((s) => opsToPath(s.ops));
 }
 
+/**
+ * Turn any SVG path `d` into an Excalidraw-style sketchy set of strokes.
+ * Includes both the wobbly outline AND hachure fill lines (in the fill color),
+ * so we can animate them all with stroke-dashoffset for a hand-drawn build-up.
+ */
+function roughSketchStrokes(
+  d: string,
+  opts: {
+    fill?: string;
+    stroke?: string;
+    strokeWidth?: number;
+    seed: number;
+    roughness?: number;
+  },
+): Array<{ d: string; stroke: string; width: number }> {
+  let drawable;
+  try {
+    drawable = roughGen.path(d, {
+      fill: opts.fill,
+      fillStyle: opts.fill ? "hachure" : undefined,
+      hachureGap: 9,
+      hachureAngle: 41,
+      fillWeight: 1.8,
+      stroke: opts.stroke ?? "#00000000",
+      strokeWidth: opts.strokeWidth ?? 2,
+      roughness: opts.roughness ?? 1.3,
+      bowing: 1,
+      seed: opts.seed,
+      disableMultiStroke: false,
+    });
+  } catch {
+    return [{ d, stroke: opts.stroke ?? opts.fill ?? "#1a1a1a", width: opts.strokeWidth ?? 2 }];
+  }
+  const out: Array<{ d: string; stroke: string; width: number }> = [];
+  for (const set of drawable.sets) {
+    const path = opsToPath(set.ops);
+    if (!path) continue;
+    if (set.type === "fillSketch" && opts.fill) {
+      out.push({ d: path, stroke: opts.fill, width: 1.6 });
+    } else if (set.type === "path" && opts.stroke) {
+      out.push({ d: path, stroke: opts.stroke, width: opts.strokeWidth ?? 2.4 });
+    }
+  }
+  return out;
+}
+
 export type IconName =
   | "brain" | "bulb" | "box" | "stick" | "chart" | "star"
   | "ship" | "mountain" | "castle" | "mosque" | "crown"
@@ -969,42 +1015,59 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
             const size = item.size ?? 160;
             const color = item.color ?? ICON_COLORS[item.name] ?? ink;
             const parts = iconParts(item.name, size, color, ink);
-            const partDur = Math.max(0.18, duration / Math.max(parts.length, 1));
+            const seedBase = (Math.abs(item.x * 31 + item.y * 17 + i * 13) | 0) + 1;
+            // Convert every icon part (fills + strokes) into wobbly rough.js
+            // sub-strokes so the whole icon draws like an Excalidraw sketch.
+            const strokes: Array<{ d: string; stroke: string; width: number }> = [];
+            const groupSizes: number[] = [];
+            parts.forEach((p, pi) => {
+              const seed = seedBase + pi * 7;
+              const before = strokes.length;
+              if (p.kind === "fill") {
+                strokes.push(
+                  ...roughSketchStrokes(p.d, {
+                    fill: p.fill,
+                    stroke: p.stroke ?? ink,
+                    strokeWidth: 2.2,
+                    seed,
+                    roughness: 1.4,
+                  }),
+                );
+              } else {
+                strokes.push(
+                  ...roughSketchStrokes(p.d, {
+                    stroke: p.stroke ?? ink,
+                    strokeWidth: p.width ?? 3,
+                    seed,
+                    roughness: 1.6,
+                  }),
+                );
+              }
+              groupSizes.push(Math.max(1, strokes.length - before));
+            });
+            const totalStrokes = Math.max(1, strokes.length);
+            const perDur = Math.max(0.05, duration / totalStrokes);
             return (
               <g key={key} className={groupClass} style={groupStyle}>
                 <g transform={`translate(${item.x} ${item.y})`}>
-                  {parts.map((p, pi) => {
-                    const pDelay = delay + pi * partDur * 0.85;
-                    if (p.kind === "fill") {
-                      return (
-                        <g key={pi}>
-                          <path d={p.d} fill={p.fill}
-                            stroke={p.stroke ?? ink}
-                            strokeWidth={2.5}
-                            strokeLinejoin="round"
-                            className={`wb-fill-${animKey}`}
-                            style={{ ["--delay" as string]: `${pDelay}s`, ["--dur" as string]: `${partDur}s` } as React.CSSProperties}
-                          />
-                        </g>
-                      );
-                    }
-                    return (
-                      <path key={pi} d={p.d} fill="none"
-                        stroke={p.stroke ?? ink}
-                        strokeWidth={p.width ?? 3.5}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        pathLength={1000}
-                        className={`wb-path-${animKey}`}
-                        filter={(isChalk || isSketch) ? `url(#wb-rough-${animKey})` : undefined}
-                        style={{
-                          ["--len" as string]: "1000",
-                          ["--delay" as string]: `${pDelay}s`,
-                          ["--dur" as string]: `${partDur}s`,
-                        } as React.CSSProperties}
-                      />
-                    );
-                  })}
+                  {strokes.map((s, si) => (
+                    <path
+                      key={si}
+                      d={s.d}
+                      fill="none"
+                      stroke={s.stroke}
+                      strokeWidth={s.width}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      pathLength={1000}
+                      className={`wb-path-${animKey}`}
+                      style={{
+                        ["--len" as string]: "1000",
+                        ["--delay" as string]: `${delay + si * perDur * 0.5}s`,
+                        ["--dur" as string]: `${Math.max(0.12, perDur * 1.4)}s`,
+                      } as React.CSSProperties}
+                    />
+                  ))}
                 </g>
                 {item.label ? (
                   <text
