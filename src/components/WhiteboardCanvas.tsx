@@ -877,6 +877,11 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
         }
         @keyframes wb-fade-${animKey} { to { opacity: 1; } }
         @keyframes wb-fadeout-${animKey} { to { opacity: 0; } }
+        @keyframes wb-fade-to-${animKey} { to { opacity: var(--to, 1); } }
+        .wb-fade-in-${animKey} {
+          opacity: 0;
+          animation: wb-fade-to-${animKey} var(--dur, 1s) ease-out var(--delay, 0s) forwards;
+        }
         @keyframes wb-text-sweep-${animKey} { to { width: ${WIDTH}px; } }
         @keyframes wb-text-draw-${animKey} {
           0%   { stroke-dashoffset: 2000; fill-opacity: 0; opacity: 1; }
