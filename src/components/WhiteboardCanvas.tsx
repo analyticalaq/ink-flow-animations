@@ -855,8 +855,8 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
         height: "100%",
         backgroundColor: bg,
         backgroundImage: isChalk
-          ? "radial-gradient(circle at 20% 30%, rgba(255,255,255,0.04), transparent 60%), radial-gradient(circle at 80% 70%, rgba(255,255,255,0.03), transparent 60%)"
-          : "radial-gradient(circle at 30% 20%, rgba(0,0,0,0.025), transparent 60%), radial-gradient(circle at 70% 80%, rgba(0,0,0,0.02), transparent 60%)",
+          ? "radial-gradient(ellipse at 25% 25%, rgba(255,255,255,0.06), transparent 55%), radial-gradient(ellipse at 78% 72%, rgba(255,255,255,0.04), transparent 55%)"
+          : "linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0) 45%), radial-gradient(ellipse at 28% 18%, rgba(0,0,0,0.03), transparent 55%), radial-gradient(ellipse at 74% 82%, rgba(0,0,0,0.025), transparent 55%)",
         overflow: "hidden",
         display: "flex",
         alignItems: "center",
