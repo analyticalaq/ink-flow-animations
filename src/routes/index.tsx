@@ -441,7 +441,7 @@ function StudioPage() {
       setIsPlaying(true);
     } catch (e) {
       console.error(e);
-      toast.error("Voiceover failed. Please try again.");
+      toast.error(e instanceof Error ? e.message : "Voiceover failed. Please try again.");
     } finally {
       setVoiceLoading(false);
     }
