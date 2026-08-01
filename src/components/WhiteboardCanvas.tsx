@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import rough from "roughjs/bin/rough";
+import rough from "roughjs/bundled/rough.esm.js";
 
 const roughGen = rough.generator();
 

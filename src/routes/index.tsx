@@ -381,11 +381,14 @@ function StudioPage() {
     const key = `${voiceId}|${speed}|${project.narration}`;
     if (audioRef.current && audioCacheKeyRef.current === key) return audioRef.current;
     const res = await tts({ data: { text: project.narration, voiceId, speed } });
+    if (res.error || !res.audioBase64) {
+      throw new Error(res.error ?? "Voiceover generation failed.");
+    }
     setAlignment(res.alignment ?? null);
     const bin = atob(res.audioBase64);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    const blob = new Blob([bytes], { type: res.mime });
+    const blob = new Blob([bytes], { type: res.mime ?? "audio/mpeg" });
     if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
     const url = URL.createObjectURL(blob);
     audioUrlRef.current = url;
@@ -438,7 +441,7 @@ function StudioPage() {
       setIsPlaying(true);
     } catch (e) {
       console.error(e);
-      toast.error("Voiceover failed. Please try again.");
+      toast.error(e instanceof Error ? e.message : "Voiceover failed. Please try again.");
     } finally {
       setVoiceLoading(false);
     }

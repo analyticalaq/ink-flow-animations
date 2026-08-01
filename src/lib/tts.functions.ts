@@ -42,7 +42,19 @@ export const synthesizeTTS = createServerFn({ method: "POST" })
 
     if (!res.ok) {
       const err = await res.text();
-      throw new Error(err || `ElevenLabs TTS failed: ${res.status}`);
+      let message = err || `ElevenLabs TTS failed: ${res.status}`;
+      try {
+        const parsed = JSON.parse(err) as { detail?: { status?: string; message?: string } };
+        if (parsed.detail?.status === "quota_exceeded") {
+          message =
+            "ElevenLabs credits exhausted — add credits to your ElevenLabs account (or use a shorter script) to generate this voiceover.";
+        } else if (parsed.detail?.message) {
+          message = parsed.detail.message;
+        }
+      } catch {
+        // keep raw message
+      }
+      return { error: message, audioBase64: null, mime: null, alignment: null };
     }
 
     const json = (await res.json()) as {
@@ -54,8 +66,9 @@ export const synthesizeTTS = createServerFn({ method: "POST" })
       } | null;
     };
     return {
+      error: null as string | null,
       audioBase64: json.audio_base64,
-      mime: "audio/mpeg",
+      mime: "audio/mpeg" as string | null,
       alignment: json.alignment ?? null,
     };
   });
