@@ -994,6 +994,24 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                     <rect x={x - approxW / 2 - 20} y={y - size} width="0" height={size * 2} />
                   </clipPath>
                 </defs>
+                {/* highlighter swipe behind the headline */}
+                <rect
+                  x={x - approxW / 2 - 26}
+                  y={y - size * 0.72}
+                  width={approxW + 52}
+                  height={size * 0.92}
+                  rx={size * 0.18}
+                  fill={isChalk ? "#ffe28a" : "#ffe066"}
+                  opacity={0}
+                  clipPath={`url(#${clipId})`}
+                  className={`wb-fade-in-${animKey}`}
+                  style={{
+                    ["--delay" as string]: `${delay}s`,
+                    ["--dur" as string]: `${duration}s`,
+                    ["--to" as string]: isChalk ? "0.22" : "0.42",
+                    mixBlendMode: "multiply",
+                  } as React.CSSProperties}
+                />
                 <text x={x} y={y} fontSize={size} textAnchor="middle"
                   className={`wb-text-${animKey}`}
                   clipPath={`url(#${clipId})`}
