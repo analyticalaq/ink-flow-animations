@@ -855,8 +855,8 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
         height: "100%",
         backgroundColor: bg,
         backgroundImage: isChalk
-          ? "radial-gradient(circle at 20% 30%, rgba(255,255,255,0.04), transparent 60%), radial-gradient(circle at 80% 70%, rgba(255,255,255,0.03), transparent 60%)"
-          : "radial-gradient(circle at 30% 20%, rgba(0,0,0,0.025), transparent 60%), radial-gradient(circle at 70% 80%, rgba(0,0,0,0.02), transparent 60%)",
+          ? "radial-gradient(ellipse at 25% 25%, rgba(255,255,255,0.06), transparent 55%), radial-gradient(ellipse at 78% 72%, rgba(255,255,255,0.04), transparent 55%)"
+          : "linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0) 45%), radial-gradient(ellipse at 28% 18%, rgba(0,0,0,0.03), transparent 55%), radial-gradient(ellipse at 74% 82%, rgba(0,0,0,0.025), transparent 55%)",
         overflow: "hidden",
         display: "flex",
         alignItems: "center",
@@ -877,12 +877,13 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
         }
         @keyframes wb-fade-${animKey} { to { opacity: 1; } }
         @keyframes wb-fadeout-${animKey} { to { opacity: 0; } }
-        @keyframes wb-text-sweep-${animKey} { to { width: ${WIDTH}px; } }
-        @keyframes wb-text-draw-${animKey} {
-          0%   { stroke-dashoffset: 2000; fill-opacity: 0; opacity: 1; }
-          70%  { stroke-dashoffset: 0;    fill-opacity: 0; }
-          100% { stroke-dashoffset: 0;    fill-opacity: 1; }
+        @keyframes wb-fade-to-${animKey} { to { opacity: var(--to, 1); } }
+        .wb-fade-in-${animKey} {
+          opacity: 0;
+          animation: wb-fade-to-${animKey} var(--dur, 1s) ease-out var(--delay, 0s) forwards;
         }
+        @keyframes wb-text-sweep-${animKey} { to { width: ${WIDTH}px; } }
+        @keyframes wb-text-draw-${animKey} { to { opacity: 1; } }
         .wb-path-${animKey} {
           stroke-dasharray: var(--len);
           stroke-dashoffset: var(--len);
@@ -902,16 +903,14 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
         }
         .wb-text-${animKey} {
           opacity: 0;
-          fill-opacity: 0;
-          stroke-dasharray: 2000;
-          stroke-dashoffset: 2000;
-          animation: wb-text-draw-${animKey} var(--dur, 1s) ease-in-out var(--delay, 0s) forwards;
+          fill-opacity: 1;
+          animation: wb-text-draw-${animKey} 0.18s linear var(--delay, 0s) forwards;
           font-family: ${isChalk ? "'Patrick Hand', cursive" : "'Caveat', cursive"};
           fill: ${ink};
           filter: url(#wb-rough-text-${animKey});
           paint-order: stroke fill;
           stroke: ${ink};
-          stroke-width: 1;
+          stroke-width: 0.6;
           stroke-linejoin: round;
           stroke-linecap: round;
           letter-spacing: 0.02em;
@@ -940,7 +939,34 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
             <feTurbulence type="fractalNoise" baseFrequency="0.025" numOctaves="2" seed="7" result="noise" />
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.4" xChannelSelector="R" yChannelSelector="G" />
           </filter>
+
+          {/* Paper / board grain */}
+          <filter id={`wb-grain-${animKey}`} x="0%" y="0%" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="4" seed="11" result="grain" />
+            <feColorMatrix type="saturate" values="0" />
+          </filter>
+          <pattern id={`wb-dots-${animKey}`} width="64" height="64" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1.6" fill={isChalk ? "#ffffff" : "#000000"} opacity={isChalk ? 0.05 : 0.045} />
+          </pattern>
+          <radialGradient id={`wb-vignette-${animKey}`} cx="50%" cy="46%" r="72%">
+            <stop offset="55%" stopColor={isChalk ? "#000000" : "#000000"} stopOpacity="0" />
+            <stop offset="100%" stopColor="#000000" stopOpacity={isChalk ? 0.35 : 0.09} />
+          </radialGradient>
         </defs>
+
+        {/* --- board surface --- */}
+        <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={bg} />
+        <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={`url(#wb-dots-${animKey})`} />
+        <rect
+          x="0"
+          y="0"
+          width={WIDTH}
+          height={HEIGHT}
+          filter={`url(#wb-grain-${animKey})`}
+          opacity={isChalk ? 0.1 : 0.055}
+          style={{ mixBlendMode: isChalk ? "screen" : "multiply" }}
+        />
+        <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={`url(#wb-vignette-${animKey})`} />
 
         {timeline.map((item, i) => {
           const delay = item.delay ?? 0;
@@ -967,6 +993,24 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                     <rect x={x - approxW / 2 - 20} y={y - size} width="0" height={size * 2} />
                   </clipPath>
                 </defs>
+                {/* highlighter swipe behind the headline */}
+                <rect
+                  x={x - approxW / 2 - 26}
+                  y={y - size * 0.72}
+                  width={approxW + 52}
+                  height={size * 0.92}
+                  rx={size * 0.18}
+                  fill={isChalk ? "#ffe28a" : "#ffe066"}
+                  opacity={0}
+                  clipPath={`url(#${clipId})`}
+                  className={`wb-fade-in-${animKey}`}
+                  style={{
+                    ["--delay" as string]: `${delay}s`,
+                    ["--dur" as string]: `${duration}s`,
+                    ["--to" as string]: isChalk ? "0.22" : "0.42",
+                    mixBlendMode: "multiply",
+                  } as React.CSSProperties}
+                />
                 <text x={x} y={y} fontSize={size} textAnchor="middle"
                   className={`wb-text-${animKey}`}
                   clipPath={`url(#${clipId})`}
