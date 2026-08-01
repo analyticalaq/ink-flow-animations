@@ -940,7 +940,34 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
             <feTurbulence type="fractalNoise" baseFrequency="0.025" numOctaves="2" seed="7" result="noise" />
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.4" xChannelSelector="R" yChannelSelector="G" />
           </filter>
+
+          {/* Paper / board grain */}
+          <filter id={`wb-grain-${animKey}`} x="0%" y="0%" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="4" seed="11" result="grain" />
+            <feColorMatrix type="saturate" values="0" />
+          </filter>
+          <pattern id={`wb-dots-${animKey}`} width="64" height="64" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1.6" fill={isChalk ? "#ffffff" : "#000000"} opacity={isChalk ? 0.05 : 0.045} />
+          </pattern>
+          <radialGradient id={`wb-vignette-${animKey}`} cx="50%" cy="46%" r="72%">
+            <stop offset="55%" stopColor={isChalk ? "#000000" : "#000000"} stopOpacity="0" />
+            <stop offset="100%" stopColor="#000000" stopOpacity={isChalk ? 0.35 : 0.09} />
+          </radialGradient>
         </defs>
+
+        {/* --- board surface --- */}
+        <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={bg} />
+        <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={`url(#wb-dots-${animKey})`} />
+        <rect
+          x="0"
+          y="0"
+          width={WIDTH}
+          height={HEIGHT}
+          filter={`url(#wb-grain-${animKey})`}
+          opacity={isChalk ? 0.1 : 0.055}
+          style={{ mixBlendMode: isChalk ? "screen" : "multiply" }}
+        />
+        <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={`url(#wb-vignette-${animKey})`} />
 
         {timeline.map((item, i) => {
           const delay = item.delay ?? 0;
