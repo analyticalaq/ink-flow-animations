@@ -907,7 +907,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           animation: wb-text-draw-${animKey} 0.18s linear var(--delay, 0s) forwards;
           font-family: ${isChalk ? "'Patrick Hand', cursive" : "'Caveat', cursive"};
           fill: ${ink};
-          filter: url(#wb-rough-text-${animKey});
+          /* rough displacement disabled: hides glyphs in some renderers */
           paint-order: stroke fill;
           stroke: ${ink};
           stroke-width: 0.6;
