@@ -750,8 +750,10 @@ function circlePath(cx: number, cy: number, r: number): string {
 export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, className, playing = true, currentTimeMs }: WhiteboardCanvasProps) {
   const isChalk = mode === "chalk";
   const isSketch = mode === "sketch";
+  /** Flat vector-cartoon style (reference: Simi / VideoScribe explainers). */
+  const isFlat = !isChalk && !isSketch;
   const ink = isChalk ? "#f5f5f0" : isSketch ? "#1d3557" : "#1a1a1a";
-  const bg = isChalk ? "#0f2a1f" : isSketch ? "#fdf6e3" : "#fafaf5";
+  const bg = isChalk ? "#0f2a1f" : isSketch ? "#fdf6e3" : "#ffffff";
   const animKey = useMemo(() => uid(), []);
   const svgRef = useRef<SVGSVGElement>(null);
   const externallyDriven = currentTimeMs !== undefined;
@@ -856,6 +858,8 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
         backgroundColor: bg,
         backgroundImage: isChalk
           ? "radial-gradient(ellipse at 25% 25%, rgba(255,255,255,0.06), transparent 55%), radial-gradient(ellipse at 78% 72%, rgba(255,255,255,0.04), transparent 55%)"
+          : isFlat
+          ? "none"
           : "linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0) 45%), radial-gradient(ellipse at 28% 18%, rgba(0,0,0,0.03), transparent 55%), radial-gradient(ellipse at 74% 82%, rgba(0,0,0,0.025), transparent 55%)",
         overflow: "hidden",
         display: "flex",
@@ -865,7 +869,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
     >
       <link
         rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Kalam:wght@700&display=swap"
       />
       <style>{`
         @keyframes wb-draw-${animKey} { to { stroke-dashoffset: 0; } }
@@ -905,15 +909,16 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           opacity: 0;
           fill-opacity: 1;
           animation: wb-text-draw-${animKey} 0.18s linear var(--delay, 0s) forwards;
-          font-family: ${isChalk ? "'Patrick Hand', cursive" : "'Caveat', cursive"};
+          font-family: ${isChalk ? "'Patrick Hand', cursive" : isFlat ? "'Kalam', 'Patrick Hand', cursive" : "'Caveat', cursive"};
           fill: ${ink};
-          filter: url(#wb-rough-text-${animKey});
+          ${isFlat ? "" : `filter: url(#wb-rough-text-${animKey});`}
           paint-order: stroke fill;
-          stroke: ${ink};
-          stroke-width: 0.6;
+          stroke: ${isFlat ? "none" : ink};
+          stroke-width: ${isFlat ? 0 : 0.6};
           stroke-linejoin: round;
           stroke-linecap: round;
-          letter-spacing: 0.02em;
+          letter-spacing: ${isFlat ? "0.06em" : "0.02em"};
+          ${isFlat ? "text-transform: uppercase;" : ""}
         }
         .wb-text-clip-${animKey} rect {
           animation: wb-text-sweep-${animKey} var(--dur, 1s) linear var(--delay, 0s) forwards;
@@ -956,17 +961,21 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
 
         {/* --- board surface --- */}
         <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={bg} />
-        <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={`url(#wb-dots-${animKey})`} />
-        <rect
-          x="0"
-          y="0"
-          width={WIDTH}
-          height={HEIGHT}
-          filter={`url(#wb-grain-${animKey})`}
-          opacity={isChalk ? 0.1 : 0.055}
-          style={{ mixBlendMode: isChalk ? "screen" : "multiply" }}
-        />
-        <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={`url(#wb-vignette-${animKey})`} />
+        {!isFlat && (
+          <>
+            <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={`url(#wb-dots-${animKey})`} />
+            <rect
+              x="0"
+              y="0"
+              width={WIDTH}
+              height={HEIGHT}
+              filter={`url(#wb-grain-${animKey})`}
+              opacity={isChalk ? 0.1 : 0.055}
+              style={{ mixBlendMode: isChalk ? "screen" : "multiply" }}
+            />
+            <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={`url(#wb-vignette-${animKey})`} />
+          </>
+        )}
 
         {timeline.map((item, i) => {
           const delay = item.delay ?? 0;
@@ -980,8 +989,8 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
 
           if (item.type === "title") {
             const size = item.size ?? 110;
-            const text = item.content;
-            const approxW = text.length * size * 0.42;
+            const text = isFlat ? item.content.toUpperCase() : item.content;
+            const approxW = text.length * size * (isFlat ? 0.62 : 0.42);
             const x = WIDTH / 2;
             const y = 140;
             const clipId = `wb-clip-${animKey}-${i}-${cycle}`;
@@ -994,7 +1003,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                   </clipPath>
                 </defs>
                 {/* highlighter swipe behind the headline */}
-                <rect
+                {!isFlat && <rect
                   x={x - approxW / 2 - 26}
                   y={y - size * 0.72}
                   width={approxW + 52}
@@ -1010,14 +1019,14 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                     ["--to" as string]: isChalk ? "0.22" : "0.42",
                     mixBlendMode: "multiply",
                   } as React.CSSProperties}
-                />
+                />}
                 <text x={x} y={y} fontSize={size} textAnchor="middle"
                   className={`wb-text-${animKey}`}
-                  clipPath={`url(#${clipId})`}
+                  clipPath={isFlat ? undefined : `url(#${clipId})`}
                   style={{ ["--delay" as string]: `${delay}s`, fontWeight: 700 } as React.CSSProperties}>
                   {text}
                 </text>
-                <path
+                {!isFlat && <path
                   d={`M ${x - approxW / 2} ${y + 20} Q ${x} ${y + 32} ${x + approxW / 2} ${y + 20}`}
                   fill="none" stroke={ink} strokeWidth={5} strokeLinecap="round"
                   pathLength={1000}
@@ -1027,7 +1036,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                     ["--delay" as string]: `${delay + duration * 0.6}s`,
                     ["--dur" as string]: `0.5s`,
                   } as React.CSSProperties}
-                />
+                />}
               </g>
             );
           }
@@ -1044,7 +1053,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                 <text x={x} y={y} fontSize={size} textAnchor={anchor}
                   className={`wb-text-${animKey}`}
                   style={{ ["--delay" as string]: `${delay}s`, fontWeight: 700 } as React.CSSProperties}>
-                  {item.content}
+                  {isFlat ? item.content.toUpperCase() : item.content}
                 </text>
               </g>
             );
@@ -1053,7 +1062,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           if (item.type === "text") {
             const size = item.size ?? 56;
             const clipId = `wb-clip-${animKey}-${i}-${cycle}`;
-            const approxW = item.content.length * size * 0.55;
+            const approxW = item.content.length * size * (isFlat ? 0.72 : 0.55);
             const anchor = item.align === "center" ? "middle" : item.align === "right" ? "end" : "start";
             const clipX = anchor === "middle" ? item.x - approxW / 2 - 10 : anchor === "end" ? item.x - approxW - 10 : item.x - 10;
             return (
@@ -1066,9 +1075,9 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                 </defs>
                 <text x={item.x} y={item.y} fontSize={size} textAnchor={anchor}
                   className={`wb-text-${animKey}`}
-                  clipPath={`url(#${clipId})`}
+                  clipPath={isFlat ? undefined : `url(#${clipId})`}
                   style={{ ["--delay" as string]: `${delay}s`, fill: item.color ?? ink } as React.CSSProperties}>
-                  {item.content}
+                  {isFlat ? item.content.toUpperCase() : item.content}
                 </text>
               </g>
             );
@@ -1078,6 +1087,67 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
             const size = item.size ?? 160;
             const color = item.color ?? ICON_COLORS[item.name] ?? ink;
             const parts = iconParts(item.name, size, color, ink);
+
+            if (isFlat) {
+              // Flat cartoon: crisp black outline draws in, solid colour fills after.
+              const perPart = Math.max(0.18, duration / Math.max(1, parts.length));
+              const outlineW = Math.max(3.5, size * 0.035);
+              return (
+                <g key={key} className={groupClass} style={groupStyle}>
+                  <g transform={`translate(${item.x} ${item.y})`}>
+                    {parts.map((p, pi) => {
+                      const at = delay + pi * perPart * 0.72;
+                      const strokeCol = p.stroke ?? ink;
+                      return (
+                        <g key={pi}>
+                          {p.kind === "fill" && (
+                            <path
+                              d={p.d}
+                              fill={p.fill ?? color}
+                              stroke="none"
+                              className={`wb-fade-in-${animKey}`}
+                              style={{
+                                ["--delay" as string]: `${at + perPart * 0.45}s`,
+                                ["--dur" as string]: `${Math.max(0.2, perPart * 0.6)}s`,
+                                ["--to" as string]: "1",
+                              } as React.CSSProperties}
+                            />
+                          )}
+                          <path
+                            d={p.d}
+                            fill="none"
+                            stroke={p.kind === "fill" ? ink : strokeCol}
+                            strokeWidth={p.kind === "fill" ? outlineW : p.width ?? outlineW}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            pathLength={1000}
+                            className={`wb-path-${animKey}`}
+                            style={{
+                              ["--len" as string]: "1000",
+                              ["--delay" as string]: `${at}s`,
+                              ["--dur" as string]: `${Math.max(0.2, perPart * 0.8)}s`,
+                            } as React.CSSProperties}
+                          />
+                        </g>
+                      );
+                    })}
+                  </g>
+                  {item.label ? (
+                    <text
+                      x={item.x}
+                      y={item.y + size * 0.72}
+                      fontSize={Math.max(30, size * 0.22)}
+                      textAnchor="middle"
+                      className={`wb-text-${animKey}`}
+                      style={{ ["--delay" as string]: `${delay + duration * 0.55}s`, fontWeight: 700 } as React.CSSProperties}
+                    >
+                      {item.label.toUpperCase()}
+                    </text>
+                  ) : null}
+                </g>
+              );
+            }
+
             const seedBase = (Math.abs(item.x * 31 + item.y * 17 + i * 13) | 0) + 1;
             // Convert every icon part (fills + strokes) into wobbly rough.js
             // sub-strokes so the whole icon draws like an Excalidraw sketch.
@@ -1164,6 +1234,38 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
             const hy1 = y2 - headLen * Math.sin(angle - Math.PI / 7);
             const hx2 = x2 - headLen * Math.cos(angle + Math.PI / 7);
             const hy2 = y2 - headLen * Math.sin(angle + Math.PI / 7);
+            if (isFlat) {
+              const hl = 34;
+              const ax1 = x2 - hl * Math.cos(angle - Math.PI / 8);
+              const ay1 = y2 - hl * Math.sin(angle - Math.PI / 8);
+              const ax2 = x2 - hl * Math.cos(angle + Math.PI / 8);
+              const ay2 = y2 - hl * Math.sin(angle + Math.PI / 8);
+              return (
+                <g key={key} className={groupClass} style={groupStyle}>
+                  <path
+                    d={`M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`}
+                    fill="none" stroke={ink} strokeWidth={6} strokeLinecap="round"
+                    pathLength={1000}
+                    className={`wb-path-${animKey}`}
+                    style={{
+                      ["--len" as string]: "1000",
+                      ["--delay" as string]: `${delay}s`,
+                      ["--dur" as string]: `${Math.max(0.25, duration * 0.7)}s`,
+                    } as React.CSSProperties}
+                  />
+                  <path
+                    d={`M ${x2} ${y2} L ${ax1} ${ay1} L ${ax2} ${ay2} Z`}
+                    fill={ink} stroke={ink} strokeWidth={2} strokeLinejoin="round"
+                    className={`wb-fade-in-${animKey}`}
+                    style={{
+                      ["--delay" as string]: `${delay + Math.max(0.25, duration * 0.7) * 0.85}s`,
+                      ["--dur" as string]: "0.18s",
+                      ["--to" as string]: "1",
+                    } as React.CSSProperties}
+                  />
+                </g>
+              );
+            }
             const roughOpts = { roughness: 1.6, bowing: 2, stroke: ink, strokeWidth: 3, seed: (Math.abs(x1 * 31 + y1 * 17 + x2 * 7 + y2) | 0) + 1 };
             const shaftPaths = roughPaths((g) => g.curve([[x1, y1], [cx, cy], [x2, y2]] as [number, number][], roughOpts));
             const head1 = roughPaths((g) => g.line(x2, y2, hx1, hy1, roughOpts));
@@ -1190,6 +1292,21 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           }
 
           if (item.type === "circle") {
+            if (isFlat) {
+              return (
+                <g key={key} className={groupClass} style={groupStyle}>
+                  <path d={circlePath(item.x, item.y, item.r)} fill="none"
+                    stroke={item.color ?? "#e03131"} strokeWidth={7} strokeLinecap="round"
+                    pathLength={1000}
+                    className={`wb-path-${animKey}`}
+                    style={{
+                      ["--len" as string]: "1000",
+                      ["--delay" as string]: `${delay}s`,
+                      ["--dur" as string]: `${duration}s`,
+                    } as React.CSSProperties} />
+                </g>
+              );
+            }
             const roughOpts = { roughness: 1.8, bowing: 1, stroke: item.color ?? ink, strokeWidth: 3, seed: (Math.abs(item.x * 13 + item.y * 7 + item.r) | 0) + 1 };
             const paths = roughPaths((g) => g.circle(item.x, item.y, item.r * 2, roughOpts));
             return (
@@ -1211,6 +1328,20 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           if (item.type === "underline") {
             const [x1, y1] = item.from;
             const [x2, y2] = item.to;
+            if (isFlat) {
+              return (
+                <g key={key} className={groupClass} style={groupStyle}>
+                  <path d={`M ${x1} ${y1} L ${x2} ${y2}`} fill="none" stroke={ink}
+                    strokeWidth={7} strokeLinecap="round" pathLength={1000}
+                    className={`wb-path-${animKey}`}
+                    style={{
+                      ["--len" as string]: "1000",
+                      ["--delay" as string]: `${delay}s`,
+                      ["--dur" as string]: `${duration}s`,
+                    } as React.CSSProperties} />
+                </g>
+              );
+            }
             const roughOpts = { roughness: 2, bowing: 3, stroke: ink, strokeWidth: 4, seed: (Math.abs(x1 * 3 + y1 * 5 + x2 * 7 + y2) | 0) + 1 };
             const paths = roughPaths((g) => g.line(x1, y1, x2, y2, roughOpts));
             return (
