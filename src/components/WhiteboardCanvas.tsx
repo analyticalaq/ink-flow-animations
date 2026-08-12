@@ -1234,6 +1234,38 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
             const hy1 = y2 - headLen * Math.sin(angle - Math.PI / 7);
             const hx2 = x2 - headLen * Math.cos(angle + Math.PI / 7);
             const hy2 = y2 - headLen * Math.sin(angle + Math.PI / 7);
+            if (isFlat) {
+              const hl = 34;
+              const ax1 = x2 - hl * Math.cos(angle - Math.PI / 8);
+              const ay1 = y2 - hl * Math.sin(angle - Math.PI / 8);
+              const ax2 = x2 - hl * Math.cos(angle + Math.PI / 8);
+              const ay2 = y2 - hl * Math.sin(angle + Math.PI / 8);
+              return (
+                <g key={key} className={groupClass} style={groupStyle}>
+                  <path
+                    d={`M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`}
+                    fill="none" stroke={ink} strokeWidth={6} strokeLinecap="round"
+                    pathLength={1000}
+                    className={`wb-path-${animKey}`}
+                    style={{
+                      ["--len" as string]: "1000",
+                      ["--delay" as string]: `${delay}s`,
+                      ["--dur" as string]: `${Math.max(0.25, duration * 0.7)}s`,
+                    } as React.CSSProperties}
+                  />
+                  <path
+                    d={`M ${x2} ${y2} L ${ax1} ${ay1} L ${ax2} ${ay2} Z`}
+                    fill={ink} stroke={ink} strokeWidth={2} strokeLinejoin="round"
+                    className={`wb-fade-in-${animKey}`}
+                    style={{
+                      ["--delay" as string]: `${delay + Math.max(0.25, duration * 0.7) * 0.85}s`,
+                      ["--dur" as string]: "0.18s",
+                      ["--to" as string]: "1",
+                    } as React.CSSProperties}
+                  />
+                </g>
+              );
+            }
             const roughOpts = { roughness: 1.6, bowing: 2, stroke: ink, strokeWidth: 3, seed: (Math.abs(x1 * 31 + y1 * 17 + x2 * 7 + y2) | 0) + 1 };
             const shaftPaths = roughPaths((g) => g.curve([[x1, y1], [cx, cy], [x2, y2]] as [number, number][], roughOpts));
             const head1 = roughPaths((g) => g.line(x2, y2, hx1, hy1, roughOpts));
