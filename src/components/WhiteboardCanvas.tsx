@@ -1292,6 +1292,21 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           }
 
           if (item.type === "circle") {
+            if (isFlat) {
+              return (
+                <g key={key} className={groupClass} style={groupStyle}>
+                  <path d={circlePath(item.x, item.y, item.r)} fill="none"
+                    stroke={item.color ?? "#e03131"} strokeWidth={7} strokeLinecap="round"
+                    pathLength={1000}
+                    className={`wb-path-${animKey}`}
+                    style={{
+                      ["--len" as string]: "1000",
+                      ["--delay" as string]: `${delay}s`,
+                      ["--dur" as string]: `${duration}s`,
+                    } as React.CSSProperties} />
+                </g>
+              );
+            }
             const roughOpts = { roughness: 1.8, bowing: 1, stroke: item.color ?? ink, strokeWidth: 3, seed: (Math.abs(item.x * 13 + item.y * 7 + item.r) | 0) + 1 };
             const paths = roughPaths((g) => g.circle(item.x, item.y, item.r * 2, roughOpts));
             return (
@@ -1313,6 +1328,20 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           if (item.type === "underline") {
             const [x1, y1] = item.from;
             const [x2, y2] = item.to;
+            if (isFlat) {
+              return (
+                <g key={key} className={groupClass} style={groupStyle}>
+                  <path d={`M ${x1} ${y1} L ${x2} ${y2}`} fill="none" stroke={ink}
+                    strokeWidth={7} strokeLinecap="round" pathLength={1000}
+                    className={`wb-path-${animKey}`}
+                    style={{
+                      ["--len" as string]: "1000",
+                      ["--delay" as string]: `${delay}s`,
+                      ["--dur" as string]: `${duration}s`,
+                    } as React.CSSProperties} />
+                </g>
+              );
+            }
             const roughOpts = { roughness: 2, bowing: 3, stroke: ink, strokeWidth: 4, seed: (Math.abs(x1 * 3 + y1 * 5 + x2 * 7 + y2) | 0) + 1 };
             const paths = roughPaths((g) => g.line(x1, y1, x2, y2, roughOpts));
             return (
