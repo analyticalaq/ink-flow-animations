@@ -750,8 +750,10 @@ function circlePath(cx: number, cy: number, r: number): string {
 export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, className, playing = true, currentTimeMs }: WhiteboardCanvasProps) {
   const isChalk = mode === "chalk";
   const isSketch = mode === "sketch";
+  /** Flat vector-cartoon style (reference: Simi / VideoScribe explainers). */
+  const isFlat = !isChalk && !isSketch;
   const ink = isChalk ? "#f5f5f0" : isSketch ? "#1d3557" : "#1a1a1a";
-  const bg = isChalk ? "#0f2a1f" : isSketch ? "#fdf6e3" : "#fafaf5";
+  const bg = isChalk ? "#0f2a1f" : isSketch ? "#fdf6e3" : "#ffffff";
   const animKey = useMemo(() => uid(), []);
   const svgRef = useRef<SVGSVGElement>(null);
   const externallyDriven = currentTimeMs !== undefined;
