@@ -961,17 +961,21 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
 
         {/* --- board surface --- */}
         <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={bg} />
-        <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={`url(#wb-dots-${animKey})`} />
-        <rect
-          x="0"
-          y="0"
-          width={WIDTH}
-          height={HEIGHT}
-          filter={`url(#wb-grain-${animKey})`}
-          opacity={isChalk ? 0.1 : 0.055}
-          style={{ mixBlendMode: isChalk ? "screen" : "multiply" }}
-        />
-        <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={`url(#wb-vignette-${animKey})`} />
+        {!isFlat && (
+          <>
+            <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={`url(#wb-dots-${animKey})`} />
+            <rect
+              x="0"
+              y="0"
+              width={WIDTH}
+              height={HEIGHT}
+              filter={`url(#wb-grain-${animKey})`}
+              opacity={isChalk ? 0.1 : 0.055}
+              style={{ mixBlendMode: isChalk ? "screen" : "multiply" }}
+            />
+            <rect x="0" y="0" width={WIDTH} height={HEIGHT} fill={`url(#wb-vignette-${animKey})`} />
+          </>
+        )}
 
         {timeline.map((item, i) => {
           const delay = item.delay ?? 0;
