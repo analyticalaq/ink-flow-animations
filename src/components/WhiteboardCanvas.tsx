@@ -1087,6 +1087,67 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
             const size = item.size ?? 160;
             const color = item.color ?? ICON_COLORS[item.name] ?? ink;
             const parts = iconParts(item.name, size, color, ink);
+
+            if (isFlat) {
+              // Flat cartoon: crisp black outline draws in, solid colour fills after.
+              const perPart = Math.max(0.18, duration / Math.max(1, parts.length));
+              const outlineW = Math.max(3.5, size * 0.035);
+              return (
+                <g key={key} className={groupClass} style={groupStyle}>
+                  <g transform={`translate(${item.x} ${item.y})`}>
+                    {parts.map((p, pi) => {
+                      const at = delay + pi * perPart * 0.72;
+                      const strokeCol = p.stroke ?? ink;
+                      return (
+                        <g key={pi}>
+                          {p.kind === "fill" && (
+                            <path
+                              d={p.d}
+                              fill={p.fill ?? color}
+                              stroke="none"
+                              className={`wb-fade-in-${animKey}`}
+                              style={{
+                                ["--delay" as string]: `${at + perPart * 0.45}s`,
+                                ["--dur" as string]: `${Math.max(0.2, perPart * 0.6)}s`,
+                                ["--to" as string]: "1",
+                              } as React.CSSProperties}
+                            />
+                          )}
+                          <path
+                            d={p.d}
+                            fill="none"
+                            stroke={p.kind === "fill" ? ink : strokeCol}
+                            strokeWidth={p.kind === "fill" ? outlineW : p.width ?? outlineW}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            pathLength={1000}
+                            className={`wb-path-${animKey}`}
+                            style={{
+                              ["--len" as string]: "1000",
+                              ["--delay" as string]: `${at}s`,
+                              ["--dur" as string]: `${Math.max(0.2, perPart * 0.8)}s`,
+                            } as React.CSSProperties}
+                          />
+                        </g>
+                      );
+                    })}
+                  </g>
+                  {item.label ? (
+                    <text
+                      x={item.x}
+                      y={item.y + size * 0.72}
+                      fontSize={Math.max(30, size * 0.22)}
+                      textAnchor="middle"
+                      className={`wb-text-${animKey}`}
+                      style={{ ["--delay" as string]: `${delay + duration * 0.55}s`, fontWeight: 700 } as React.CSSProperties}
+                    >
+                      {item.label.toUpperCase()}
+                    </text>
+                  ) : null}
+                </g>
+              );
+            }
+
             const seedBase = (Math.abs(item.x * 31 + item.y * 17 + i * 13) | 0) + 1;
             // Convert every icon part (fills + strokes) into wobbly rough.js
             // sub-strokes so the whole icon draws like an Excalidraw sketch.
