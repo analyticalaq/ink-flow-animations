@@ -990,7 +990,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           if (item.type === "title") {
             const size = item.size ?? 110;
             const text = isFlat ? item.content.toUpperCase() : item.content;
-            const approxW = text.length * size * 0.42;
+            const approxW = text.length * size * (isFlat ? 0.62 : 0.42);
             const x = WIDTH / 2;
             const y = 140;
             const clipId = `wb-clip-${animKey}-${i}-${cycle}`;
@@ -1062,7 +1062,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           if (item.type === "text") {
             const size = item.size ?? 56;
             const clipId = `wb-clip-${animKey}-${i}-${cycle}`;
-            const approxW = item.content.length * size * 0.55;
+            const approxW = item.content.length * size * (isFlat ? 0.72 : 0.55);
             const anchor = item.align === "center" ? "middle" : item.align === "right" ? "end" : "start";
             const clipX = anchor === "middle" ? item.x - approxW / 2 - 10 : anchor === "end" ? item.x - approxW - 10 : item.x - 10;
             return (
