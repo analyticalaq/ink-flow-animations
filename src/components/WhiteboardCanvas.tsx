@@ -858,6 +858,8 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
         backgroundColor: bg,
         backgroundImage: isChalk
           ? "radial-gradient(ellipse at 25% 25%, rgba(255,255,255,0.06), transparent 55%), radial-gradient(ellipse at 78% 72%, rgba(255,255,255,0.04), transparent 55%)"
+          : isFlat
+          ? "none"
           : "linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0) 45%), radial-gradient(ellipse at 28% 18%, rgba(0,0,0,0.03), transparent 55%), radial-gradient(ellipse at 74% 82%, rgba(0,0,0,0.025), transparent 55%)",
         overflow: "hidden",
         display: "flex",
@@ -867,7 +869,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
     >
       <link
         rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Kalam:wght@700&display=swap"
       />
       <style>{`
         @keyframes wb-draw-${animKey} { to { stroke-dashoffset: 0; } }
@@ -907,15 +909,16 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           opacity: 0;
           fill-opacity: 1;
           animation: wb-text-draw-${animKey} 0.18s linear var(--delay, 0s) forwards;
-          font-family: ${isChalk ? "'Patrick Hand', cursive" : "'Caveat', cursive"};
+          font-family: ${isChalk ? "'Patrick Hand', cursive" : isFlat ? "'Kalam', 'Patrick Hand', cursive" : "'Caveat', cursive"};
           fill: ${ink};
-          filter: url(#wb-rough-text-${animKey});
+          ${isFlat ? "" : `filter: url(#wb-rough-text-${animKey});`}
           paint-order: stroke fill;
-          stroke: ${ink};
-          stroke-width: 0.6;
+          stroke: ${isFlat ? "none" : ink};
+          stroke-width: ${isFlat ? 0 : 0.6};
           stroke-linejoin: round;
           stroke-linecap: round;
-          letter-spacing: 0.02em;
+          letter-spacing: ${isFlat ? "0.06em" : "0.02em"};
+          ${isFlat ? "text-transform: uppercase;" : ""}
         }
         .wb-text-clip-${animKey} rect {
           animation: wb-text-sweep-${animKey} var(--dur, 1s) linear var(--delay, 0s) forwards;
