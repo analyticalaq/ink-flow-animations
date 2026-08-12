@@ -989,7 +989,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
 
           if (item.type === "title") {
             const size = item.size ?? 110;
-            const text = item.content;
+            const text = isFlat ? item.content.toUpperCase() : item.content;
             const approxW = text.length * size * 0.42;
             const x = WIDTH / 2;
             const y = 140;
@@ -1003,7 +1003,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                   </clipPath>
                 </defs>
                 {/* highlighter swipe behind the headline */}
-                <rect
+                {!isFlat && <rect
                   x={x - approxW / 2 - 26}
                   y={y - size * 0.72}
                   width={approxW + 52}
@@ -1019,14 +1019,14 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                     ["--to" as string]: isChalk ? "0.22" : "0.42",
                     mixBlendMode: "multiply",
                   } as React.CSSProperties}
-                />
+                />}
                 <text x={x} y={y} fontSize={size} textAnchor="middle"
                   className={`wb-text-${animKey}`}
                   clipPath={`url(#${clipId})`}
                   style={{ ["--delay" as string]: `${delay}s`, fontWeight: 700 } as React.CSSProperties}>
                   {text}
                 </text>
-                <path
+                {!isFlat && <path
                   d={`M ${x - approxW / 2} ${y + 20} Q ${x} ${y + 32} ${x + approxW / 2} ${y + 20}`}
                   fill="none" stroke={ink} strokeWidth={5} strokeLinecap="round"
                   pathLength={1000}
@@ -1036,7 +1036,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                     ["--delay" as string]: `${delay + duration * 0.6}s`,
                     ["--dur" as string]: `0.5s`,
                   } as React.CSSProperties}
-                />
+                />}
               </g>
             );
           }
@@ -1053,7 +1053,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                 <text x={x} y={y} fontSize={size} textAnchor={anchor}
                   className={`wb-text-${animKey}`}
                   style={{ ["--delay" as string]: `${delay}s`, fontWeight: 700 } as React.CSSProperties}>
-                  {item.content}
+                  {isFlat ? item.content.toUpperCase() : item.content}
                 </text>
               </g>
             );
@@ -1077,7 +1077,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                   className={`wb-text-${animKey}`}
                   clipPath={`url(#${clipId})`}
                   style={{ ["--delay" as string]: `${delay}s`, fill: item.color ?? ink } as React.CSSProperties}>
-                  {item.content}
+                  {isFlat ? item.content.toUpperCase() : item.content}
                 </text>
               </g>
             );
