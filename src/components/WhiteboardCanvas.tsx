@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useId } from "react";
 import rough from "roughjs/bundled/rough.esm.js";
 
 const roughGen = rough.generator();
@@ -178,8 +178,22 @@ export interface WhiteboardCanvasProps {
 const WIDTH = 1920;
 const HEIGHT = 1080;
 
-function uid() {
-  return Math.random().toString(36).slice(2, 10);
+function wrapWords(text: string, maxCharacters: number): string[] {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return [""];
+  const lines: string[] = [];
+  let line = "";
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && candidate.length > maxCharacters) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.slice(0, 3);
 }
 
 // Default color palette per icon (warm illustration look)
@@ -754,7 +768,8 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
   const isFlat = !isChalk && !isSketch;
   const ink = isChalk ? "#f5f5f0" : isSketch ? "#1d3557" : "#1a1a1a";
   const bg = isChalk ? "#0f2a1f" : isSketch ? "#fdf6e3" : "#ffffff";
-  const animKey = useMemo(() => uid(), []);
+  const reactId = useId();
+  const animKey = useMemo(() => reactId.replace(/[^a-zA-Z0-9_-]/g, ""), [reactId]);
   const svgRef = useRef<SVGSVGElement>(null);
   const externallyDriven = currentTimeMs !== undefined;
 
@@ -867,10 +882,6 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
         justifyContent: "center",
       }}
     >
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Patrick+Hand&family=Kalam:wght@700&display=swap"
-      />
       <style>{`
         @keyframes wb-draw-${animKey} { to { stroke-dashoffset: 0; } }
         @keyframes wb-fillin-${animKey} { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
@@ -917,7 +928,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           stroke-width: ${isFlat ? 0 : 0.6};
           stroke-linejoin: round;
           stroke-linecap: round;
-          letter-spacing: ${isFlat ? "0.06em" : "0.02em"};
+          letter-spacing: 0;
           ${isFlat ? "text-transform: uppercase;" : ""}
         }
         .wb-text-clip-${animKey} rect {
@@ -988,18 +999,20 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
           const groupClass = fadeOut !== null ? `wb-scene-out-${animKey}` : undefined;
 
           if (item.type === "title") {
-            const size = item.size ?? 110;
             const text = isFlat ? item.content.toUpperCase() : item.content;
-            const approxW = text.length * size * (isFlat ? 0.62 : 0.42);
+            const titleLines = wrapWords(text, 25);
+            const longestLine = Math.max(...titleLines.map((line) => line.length), 1);
+            const size = item.size ?? Math.max(70, Math.min(110, 1500 / (longestLine * 0.62)));
+            const approxW = longestLine * size * (isFlat ? 0.62 : 0.42);
             const x = WIDTH / 2;
-            const y = 140;
+            const y = titleLines.length > 1 ? 105 : 140;
             const clipId = `wb-clip-${animKey}-${i}-${cycle}`;
             return (
               <g key={key} className={groupClass} style={groupStyle}>
                 <defs>
                   <clipPath id={clipId} className={`wb-text-clip-${animKey}`}
                     style={{ ["--delay" as string]: `${delay}s`, ["--dur" as string]: `${duration}s` } as React.CSSProperties}>
-                    <rect x={x - approxW / 2 - 20} y={y - size} width="0" height={size * 2} />
+                    <rect x={x - approxW / 2 - 20} y={y - size} width="0" height={size * (titleLines.length + 1.25)} />
                   </clipPath>
                 </defs>
                 {/* highlighter swipe behind the headline */}
@@ -1024,7 +1037,9 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                   className={`wb-text-${animKey}`}
                   clipPath={isFlat ? undefined : `url(#${clipId})`}
                   style={{ ["--delay" as string]: `${delay}s`, fontWeight: 700 } as React.CSSProperties}>
-                  {text}
+                  {titleLines.map((line, lineIndex) => (
+                    <tspan key={line} x={x} dy={lineIndex === 0 ? 0 : size * 0.9}>{line}</tspan>
+                  ))}
                 </text>
                 {!isFlat && <path
                   d={`M ${x - approxW / 2} ${y + 20} Q ${x} ${y + 32} ${x + approxW / 2} ${y + 20}`}
@@ -1061,6 +1076,7 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
 
           if (item.type === "text") {
             const size = item.size ?? 56;
+            const textLines = wrapWords(isFlat ? item.content.toUpperCase() : item.content, 22);
             const clipId = `wb-clip-${animKey}-${i}-${cycle}`;
             const approxW = item.content.length * size * (isFlat ? 0.72 : 0.55);
             const anchor = item.align === "center" ? "middle" : item.align === "right" ? "end" : "start";
@@ -1077,7 +1093,9 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                   className={`wb-text-${animKey}`}
                   clipPath={isFlat ? undefined : `url(#${clipId})`}
                   style={{ ["--delay" as string]: `${delay}s`, fill: item.color ?? ink } as React.CSSProperties}>
-                  {isFlat ? item.content.toUpperCase() : item.content}
+                  {textLines.map((line, lineIndex) => (
+                    <tspan key={`${line}-${lineIndex}`} x={item.x} dy={lineIndex === 0 ? 0 : size * 0.92}>{line}</tspan>
+                  ))}
                 </text>
               </g>
             );
@@ -1141,7 +1159,9 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
                       className={`wb-text-${animKey}`}
                       style={{ ["--delay" as string]: `${delay + duration * 0.55}s`, fontWeight: 700 } as React.CSSProperties}
                     >
-                      {item.label.toUpperCase()}
+                      {wrapWords(item.label.toUpperCase(), 14).map((line, lineIndex) => (
+                        <tspan key={`${line}-${lineIndex}`} x={item.x} dy={lineIndex === 0 ? 0 : Math.max(30, size * 0.22) * 0.92}>{line}</tspan>
+                      ))}
                     </text>
                   ) : null}
                 </g>
