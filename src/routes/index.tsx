@@ -35,6 +35,8 @@ export const Route = createFileRoute("/")({
         property: "og:description",
         content: "Turn any script into a hand-drawn whiteboard animation.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: StudioPage,
