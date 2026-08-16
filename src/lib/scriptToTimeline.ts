@@ -143,7 +143,7 @@ export function buildTimelineFromScript(
   const pacing = opts.pacing ?? "normal";
   const targetSeconds = durationMinutes * 60;
   const sentences = splitSentences(script);
-  const targetScenes = Math.max(3, Math.min(10, Math.round(targetSeconds / 10)));
+  const targetScenes = Math.max(3, Math.min(40, Math.round(targetSeconds / 12)));
   const sceneChunks = chunkScenes(sentences.length ? sentences : [script], targetScenes);
 
   const sceneDuration = targetSeconds / Math.max(1, sceneChunks.length);
@@ -155,7 +155,7 @@ export function buildTimelineFromScript(
   sceneChunks.forEach((chunk, sceneIdx) => {
     const sceneText = chunk.join(" ");
     const sceneStart = cursor;
-    const iconCount = 3 + (sceneIdx % 2);
+    const iconCount = Math.min(4, Math.max(3, splitSentences(sceneText).length + 2));
     const picks = pickIconsForText(sceneText, iconCount);
 
     items.push({
@@ -166,11 +166,14 @@ export function buildTimelineFromScript(
       scene: sceneIdx,
     });
 
-    const slots = Math.max(1, picks.length);
-    const xs = Array.from({ length: slots }, (_, i) =>
-      Math.round(280 + (i + 0.5) * ((1640 - 280) / slots)),
-    );
-    const ys = picks.map((_, i) => (i % 2 === 0 ? 560 : 660));
+    const layouts = [
+      [[430, 500], [960, 500], [1490, 500], [960, 800]],
+      [[520, 460], [1400, 460], [520, 800], [1400, 800]],
+      [[400, 650], [800, 470], [1200, 470], [1600, 650]],
+    ] as const;
+    const layout = layouts[sceneIdx % layouts.length];
+    const xs = picks.map((_, i) => layout[i][0]);
+    const ys = picks.map((_, i) => layout[i][1]);
 
     picks.forEach((p, i) => {
       const at = sceneStart + 1.8 + i * baseGap;
@@ -179,7 +182,7 @@ export function buildTimelineFromScript(
         name: p.icon,
         x: xs[i],
         y: ys[i],
-        size: 180 + ((i * 23) % 60),
+        size: 210 + ((i * 19) % 45),
         label: p.label,
         delay: at,
         duration: 1.4,
@@ -201,12 +204,13 @@ export function buildTimelineFromScript(
       ? chunk[0].split(/\s+/).slice(0, 7).join(" ").replace(/[.,;:!?]$/, "")
       : "";
     if (callout) {
+      const calloutY = picks.length > 3 ? 955 : 900;
       items.push({
         type: "text",
         content: callout,
         x: 960,
-        y: 880,
-        size: 48,
+        y: calloutY,
+        size: 44,
         align: "center",
         delay: sceneStart + 1.8 + picks.length * baseGap + 0.3,
         duration: 1.0,
