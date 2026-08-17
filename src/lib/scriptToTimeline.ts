@@ -132,8 +132,11 @@ function makeTitle(sentence: string): string {
   const cleaned = sentence
     .replace(/^\s*(explain|describe|show|tell me about)\s+/i, "")
     .replace(/artificial intelligence/gi, "AI")
+    .replace(/\s+in\s+simple\s+terms.*$/i, "")
     .replace(/[.,;:]$/g, "")
     .trim();
+  const embeddedQuestion = cleaned.match(/^what\s+(.+?)\s+is[?!.]?$/i);
+  if (embeddedQuestion) return `What is ${embeddedQuestion[1]}`;
   const question = cleaned.match(/^(what|how|why)\s+(.+?)(?:\s+in\s+simple\s+terms)?[?!.]?$/i);
   if (question) return `${question[1]} ${question[2]}`.split(/\s+/).slice(0, 5).join(" ");
   return cleaned.split(/\s+/).filter(Boolean).slice(0, 5).join(" ").replace(/[.,;:!?]$/, "");
