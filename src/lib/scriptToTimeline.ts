@@ -33,7 +33,7 @@ const KEYWORD_ICONS: Array<[RegExp, IconName]> = [
   [/\b(shield|safe|defend|guard)/i, "shield"],
   [/\b(checkmark|done|complete|success|approved)/i, "checkmark"],
   [/\b(wrong|fail|error|reject|cross)/i, "cross"],
-  [/\b(question|why|how|what|ask|unknown)/i, "question"],
+  [/\b(question|ask|unknown|confus|unclear|mystery)/i, "question"],
   [/\b(search|find|look|explore|discover)/i, "search"],
   [/\b(setting|config|option|preference|tune)/i, "settings"],
   [/\b(trophy|win|award|champion|first)/i, "trophy"],
@@ -106,7 +106,13 @@ function pickIconsForText(text: string, max: number): Array<{ icon: IconName; la
     const m = text.match(re);
     if (m) {
       seen.add(icon);
-      found.push({ icon, label: m[0].toLowerCase() });
+      const raw = m[0].toLowerCase();
+      const label = /artificial intelligence/i.test(raw)
+        ? "AI"
+        : /machine learning/i.test(raw)
+          ? "learning"
+          : raw;
+      found.push({ icon, label });
       if (found.length >= max) break;
     }
   }
@@ -123,8 +129,14 @@ function pickIconsForText(text: string, max: number): Array<{ icon: IconName; la
 }
 
 function makeTitle(sentence: string): string {
-  const words = sentence.split(/\s+/).filter(Boolean);
-  return words.slice(0, 5).join(" ").replace(/[.,;:!?]$/, "");
+  const cleaned = sentence
+    .replace(/^\s*(explain|describe|show|tell me about)\s+/i, "")
+    .replace(/artificial intelligence/gi, "AI")
+    .replace(/[.,;:]$/g, "")
+    .trim();
+  const question = cleaned.match(/^(what|how|why)\s+(.+?)(?:\s+in\s+simple\s+terms)?[?!.]?$/i);
+  if (question) return `${question[1]} ${question[2]}`.split(/\s+/).slice(0, 5).join(" ");
+  return cleaned.split(/\s+/).filter(Boolean).slice(0, 5).join(" ").replace(/[.,;:!?]$/, "");
 }
 
 function chunkScenes(sentences: string[], targetScenes: number): string[][] {
@@ -200,8 +212,9 @@ export function buildTimelineFromScript(
       }
     });
 
-    const callout = chunk[0]
-      ? chunk[0].split(/\s+/).slice(0, 7).join(" ").replace(/[.,;:!?]$/, "")
+    const calloutSource = chunk[1] ?? "";
+    const callout = calloutSource
+      ? calloutSource.split(/\s+/).slice(0, 6).join(" ").replace(/[.,;:!?]$/, "")
       : "";
     if (callout) {
       const calloutY = picks.length > 3 ? 955 : 900;
