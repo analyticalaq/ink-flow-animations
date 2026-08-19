@@ -133,6 +133,18 @@ export type TimelineItem =
       color?: string;
     }
   | {
+      type: "art";
+      /** Sanitised shapes in a 0 0 200 200 coordinate space. */
+      shapes: ArtShape[];
+      x: number;
+      y: number;
+      delay?: number;
+      duration?: number;
+      size?: number;
+      label?: string;
+      scene?: number;
+    }
+  | {
       type: "arrow";
       from: [number, number];
       to: [number, number];
