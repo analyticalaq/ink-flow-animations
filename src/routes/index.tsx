@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/")({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   head: () => ({
     meta: [
       { title: "Whiteboard Studio — AI Animated Explainers" },
