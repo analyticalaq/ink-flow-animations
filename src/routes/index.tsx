@@ -535,7 +535,7 @@ function StudioPage() {
       setProject({
         title: res.title ?? "Untitled",
         narration: res.narration ?? "",
-        items: res.items as TimelineItem[],
+        items: await resolveArtItems(res.items as RawItem[], drawArt, setDrawingCount),
       });
       setPlayKey((k) => k + 1);
       autoPlayRef.current = true;
@@ -545,6 +545,7 @@ function StudioPage() {
       toast.error("Generation failed. Please try again.");
     } finally {
       setLoading(false);
+      setDrawingCount(0);
     }
   }
 
