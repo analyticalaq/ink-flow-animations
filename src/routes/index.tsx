@@ -821,7 +821,11 @@ function StudioPage() {
             disabled={loading || !script.trim()}
             className="w-full"
           >
-            {loading ? "Generating…" : "Generate animation"}
+            {loading
+              ? drawingCount > 0
+                ? `Drawing ${drawingCount} illustrations…`
+                : "Generating…"
+              : "Generate animation"}
           </Button>
 
           <Button
