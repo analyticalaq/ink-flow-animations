@@ -22,8 +22,84 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type RawItem = TimelineItem & { art?: string };
+
+const artCache = new Map<string, ArtShape[]>();
+
+function loadCachedArt(brief: string): ArtShape[] | undefined {
+  const hit = artCache.get(brief);
+  if (hit) return hit;
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.sessionStorage.getItem(`wb-art:${brief}`);
+    if (!raw) return undefined;
+    const shapes = JSON.parse(raw) as ArtShape[];
+    artCache.set(brief, shapes);
+    return shapes;
+  } catch {
+    return undefined;
+  }
+}
+
+function storeArt(brief: string, shapes: ArtShape[]) {
+  artCache.set(brief, shapes);
+  try {
+    window.sessionStorage.setItem(`wb-art:${brief}`, JSON.stringify(shapes));
+  } catch {
+    /* quota — in-memory cache is enough */
+  }
+}
+
+/**
+ * Turns every AI "art" brief into hand-drawn SVG shapes. Items whose drawing
+ * fails keep their built-in icon fallback so a video is always produced.
+ */
+async function resolveArtItems(
+  items: RawItem[],
+  draw: (opts: { data: { briefs: string[] } }) => Promise<{ art?: Record<string, ArtShape[]> }>,
+  onPending: (count: number) => void,
+): Promise<TimelineItem[]> {
+  const briefs = Array.from(
+    new Set(
+      items
+        .filter((it) => it.type === "icon" && typeof it.art === "string" && it.art.trim().length > 2)
+        .map((it) => it.art!.trim()),
+    ),
+  );
+  const missing = briefs.filter((b) => !loadCachedArt(b));
+  if (missing.length) {
+    onPending(missing.length);
+    // The gateway caps briefs per request; chunk large timelines.
+    const chunks: string[][] = [];
+    for (let i = 0; i < missing.length; i += 12) chunks.push(missing.slice(i, i + 12));
+    for (const chunk of chunks) {
+      try {
+        const res = await draw({ data: { briefs: chunk } });
+        Object.entries(res.art ?? {}).forEach(([brief, shapes]) => storeArt(brief, shapes));
+      } catch (e) {
+        console.error("art batch failed", e);
+      }
+    }
+  }
+  return items.map((it) => {
+    if (it.type !== "icon" || !it.art) return it as TimelineItem;
+    const shapes = loadCachedArt(it.art.trim());
+    if (!shapes) return it as TimelineItem;
+    return {
+      type: "art",
+      shapes,
+      x: it.x,
+      y: it.y,
+      size: it.size,
+      label: it.label,
+      delay: it.delay,
+      duration: it.duration,
+      scene: it.scene,
+    } satisfies TimelineItem;
+  });
+}
+
 export const Route = createFileRoute("/")({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   head: () => ({
     meta: [
       { title: "Whiteboard Studio — AI Animated Explainers" },
