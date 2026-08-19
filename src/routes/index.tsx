@@ -100,6 +100,7 @@ const ELEVEN_VOICES: Array<{ id: string; label: string }> = [
 
 function StudioPage() {
   const generate = useServerFn(generateTimeline);
+  const drawArt = useServerFn(generateArt);
   const tts = useServerFn(synthesizeTTS);
   const [script, setScript] = useState(STARTER_SCRIPT);
   const [style, setStyle] = useState<"explainer" | "story" | "lecture" | "pitch">("explainer");
