@@ -186,6 +186,7 @@ function StudioPage() {
   const [mode, setMode] = useState<Mode>("marker");
   const [project, setProject] = useState<Project>(DEMO);
   const [loading, setLoading] = useState(false);
+  const [drawingCount, setDrawingCount] = useState(0);
   const [playKey, setPlayKey] = useState(0);
   const [voiceId, setVoiceId] = useState<string>(ELEVEN_VOICES[0].id);
   // Narration speed multiplier (also scales animation timeline so export stays in sync)
