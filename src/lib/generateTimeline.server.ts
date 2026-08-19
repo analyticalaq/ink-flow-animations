@@ -11,6 +11,7 @@ export type GeneratedItem = {
   type: string;
   content?: string;
   name?: string;
+  art?: string;
   label?: string;
   x?: number;
   y?: number;
@@ -35,11 +36,14 @@ Output ONLY valid JSON (no prose, no markdown fences):
 TimelineItem variants (ALWAYS include "scene": <integer starting at 0>):
 - { "type": "title", "content": "...", "delay": n, "duration": 1.2, "scene": s }
 - { "type": "text", "content": "...", "x": n, "y": n, "size"?: 44-72, "align"?: "left"|"center"|"right", "delay": n, "duration"?: 0.8, "scene": s }
-- { "type": "icon", "name": IconName, "x": n, "y": n, "size"?: 180-300, "label"?: "short caption", "color"?: "#hex", "delay": n, "duration"?: 1.4, "scene": s }
+- { "type": "icon", "art": "one-sentence description of the exact drawing", "name": IconName, "x": n, "y": n, "size"?: 180-300, "label"?: "short caption", "color"?: "#hex", "delay": n, "duration"?: 1.4, "scene": s }
 - { "type": "arrow", "from": [x,y], "to": [x,y], "delay": n, "duration"?: 0.8, "scene": s }
 - { "type": "circle", "x": n, "y": n, "r": n, "delay": n, "duration"?: 1, "scene": s }
 - { "type": "underline", "from": [x,y], "to": [x,y], "delay": n, "duration"?: 0.6, "scene": s }
 - { "type": "caption", "content": "...", "position"?: "bottom-left"|"bottom-right"|"top-right", "delay": n, "scene": s }
+
+"art" is REQUIRED on every icon item: a concrete, literal description of the picture to draw for THIS sentence, e.g. "a farmer pouring water into a cracked clay pot", "a smartphone with a shopping cart on its screen". Describe the subject only — no style words, no text in the picture, no background. Each art description in a scene must be different and specific to the script.
+"name" is a required fallback: the closest matching value from the list below, used only if the drawing cannot be produced.
 
 IconName values (use these only):
 "brain","bulb","box","stick","chart","star","ship","mountain","castle","mosque","crown","king","queen","sword","flag","tower","scroll","book","sun","tree","globe","scale","horse","shield","gear","heart","rocket","computer","person","money","clock","target","document","megaphone","cloud","phone","robot","leaf","fire","lock","key","chat","checkmark","cross","question","house","car","graph","pencil","camera","music","mail","calendar","search","settings","trophy","gift","bag","cart","bell","users","puzzle","plane","bolt","moon","coffee","smile","atom","flask","magnet","wand","battery","wifi","droplet","snowflake","umbrella","pizza","bicycle","factory","school","hospital"
