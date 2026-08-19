@@ -75,6 +75,7 @@ function roughSketchStrokes(
 
 export type IconName =
   | "brain" | "bulb" | "box" | "stick" | "chart" | "star"
+  | "brain" | "bulb" | "box" | "stick" | "chart" | "star"
   | "ship" | "mountain" | "castle" | "mosque" | "crown"
   | "king" | "queen" | "sword" | "flag" | "tower"
   | "scroll" | "book" | "sun" | "tree" | "globe"
