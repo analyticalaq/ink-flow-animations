@@ -24,6 +24,7 @@ Hard rules:
 - Fills must be simple hex colours from this palette: #f2b134 #e85d3a #4a90c4 #3d8a4a #d94a5c #8d4ea0 #7b4a2a #a8c5dc #f2c94c #ffffff #111111
 - 4-14 shapes total. Clear, chunky, readable at a glance — no fine detail, no hatching.
 - Draw the literal subject requested. No captions, no decorative backgrounds.`;
+// (no background rectangle: the board is already white)
 
 const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
@@ -105,9 +106,21 @@ export function svgToShapes(svg: string): ArtShape[] {
     const fill = color(a.fill);
     const stroke = color(a.stroke) ?? "#111111";
     const width = Math.min(10, Math.max(1, num(a["stroke-width"], 4)));
+    if (isFullFrameBackground(d, fill)) continue;
     shapes.push({ d, ...(fill ? { fill } : {}), stroke, width });
   }
   return shapes;
+}
+
+/** Drops full-canvas background plates the model sometimes adds. */
+function isFullFrameBackground(d: string, fill: string | undefined): boolean {
+  if (!fill || (fill !== "#ffffff" && fill !== "#fff")) return false;
+  const nums = (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+  if (nums.length < 4 || nums.length > 12) return false;
+  const xs = nums.filter((_, i) => i % 2 === 0);
+  const ys = nums.filter((_, i) => i % 2 === 1);
+  const span = (arr: number[]) => Math.max(...arr) - Math.min(...arr);
+  return span(xs) >= 190 && span(ys) >= 190;
 }
 
 async function drawOne(brief: string, apiKey: string): Promise<ArtShape[] | null> {
