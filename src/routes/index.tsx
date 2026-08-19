@@ -3,8 +3,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { WhiteboardCanvas, type TimelineItem } from "@/components/WhiteboardCanvas";
+import { WhiteboardCanvas, type ArtShape, type TimelineItem } from "@/components/WhiteboardCanvas";
 import { generateTimeline } from "@/lib/generateTimeline.functions";
+import { generateArt } from "@/lib/generateArt.functions";
 import { synthesizeTTS } from "@/lib/tts.functions";
 import { Play, Pause, RotateCcw } from "lucide-react";
 
