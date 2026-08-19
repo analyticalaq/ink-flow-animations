@@ -1120,6 +1120,69 @@ export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, clas
             );
           }
 
+          if (item.type === "art") {
+            const size = item.size ?? 240;
+            const scale = size / 200;
+            const shapes = item.shapes ?? [];
+            const perPart = Math.max(0.16, duration / Math.max(1, shapes.length));
+            const labelSize = Math.max(30, size * 0.2);
+            return (
+              <g key={key} className={groupClass} style={groupStyle}>
+                <g transform={`translate(${item.x - size / 2} ${item.y - size / 2}) scale(${scale})`}>
+                  {shapes.map((s, pi) => {
+                    const at = delay + pi * perPart * 0.7;
+                    return (
+                      <g key={pi}>
+                        {s.fill ? (
+                          <path
+                            d={s.d}
+                            fill={s.fill}
+                            stroke="none"
+                            className={`wb-fade-in-${animKey}`}
+                            style={{
+                              ["--delay" as string]: `${at + perPart * 0.45}s`,
+                              ["--dur" as string]: `${Math.max(0.2, perPart * 0.6)}s`,
+                              ["--to" as string]: "1",
+                            } as React.CSSProperties}
+                          />
+                        ) : null}
+                        <path
+                          d={s.d}
+                          fill="none"
+                          stroke={isChalk ? "#f4f4f0" : s.stroke ?? ink}
+                          strokeWidth={s.width ?? 4}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          pathLength={1000}
+                          className={`wb-path-${animKey}`}
+                          style={{
+                            ["--len" as string]: "1000",
+                            ["--delay" as string]: `${at}s`,
+                            ["--dur" as string]: `${Math.max(0.2, perPart * 0.85)}s`,
+                          } as React.CSSProperties}
+                        />
+                      </g>
+                    );
+                  })}
+                </g>
+                {item.label ? (
+                  <text
+                    x={item.x}
+                    y={item.y + size * 0.66}
+                    fontSize={labelSize}
+                    textAnchor="middle"
+                    className={`wb-text-${animKey}`}
+                    style={{ ["--delay" as string]: `${delay + duration * 0.55}s`, fontWeight: 700 } as React.CSSProperties}
+                  >
+                    {wrapWords(item.label.toUpperCase(), 14).map((line, lineIndex) => (
+                      <tspan key={`${line}-${lineIndex}`} x={item.x} dy={lineIndex === 0 ? 0 : labelSize * 0.92}>{line}</tspan>
+                    ))}
+                  </text>
+                ) : null}
+              </g>
+            );
+          }
+
           if (item.type === "icon") {
             const size = item.size ?? 160;
             const color = item.color ?? ICON_COLORS[item.name] ?? ink;
