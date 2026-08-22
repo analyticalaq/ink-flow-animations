@@ -576,6 +576,78 @@ function StudioPage() {
     setAudioTimeMs(clamped * 1000);
   }
 
+  /** One-click render of the current animation to a 1920x1080 video file. */
+  async function onExport() {
+    if (exporting) return;
+    if (!isExportSupported()) {
+      toast.error("This browser can't record video. Try Chrome or Edge.");
+      return;
+    }
+    // Stop playback so the offscreen renderer owns the animation clock.
+    audioRef.current?.pause();
+    setIsPlaying(false);
+
+    const controller = new AbortController();
+    exportAbortRef.current = controller;
+    setExporting(true);
+    setExportProgress(0);
+    setExportEta("");
+
+    try {
+      // Make sure narration exists so it can be baked into the file.
+      if (project.narration?.trim()) {
+        try {
+          await ensureAudio();
+        } catch (e) {
+          console.error(e);
+          toast.message("Exporting without narration", {
+            description: e instanceof Error ? e.message : undefined,
+          });
+        }
+      }
+      // Let the offscreen renderer mount with the current timeline.
+      await new Promise((r) => setTimeout(r, 60));
+      const svg = exportSvgRef.current;
+      if (!svg) throw new Error("Renderer not ready. Please try again.");
+
+      const durationSeconds = audioDuration > 0 ? audioDuration + 0.6 : totalDuration;
+      const { blob, extension } = await exportWhiteboardVideo({
+        svg,
+        durationSeconds,
+        audioBlob: audioBlobRef.current,
+        background: mode === "chalk" ? "#0f2a1f" : mode === "sketch" ? "#fdf6e3" : "#ffffff",
+        signal: controller.signal,
+        onProgress: (p) => {
+          setExportProgress(p.ratio);
+          setExportEta(`${formatTime(p.currentSeconds)} / ${formatTime(p.totalSeconds)}`);
+        },
+      });
+
+      const safeTitle =
+        (project.title || "whiteboard").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") ||
+        "whiteboard";
+      downloadBlob(blob, `${safeTitle}.${extension}`);
+      if (extension === "webm") {
+        toast.success("Video downloaded as .webm (MP4 encoding isn't available in this browser).");
+      } else {
+        toast.success("MP4 downloaded (1920x1080).");
+      }
+    } catch (e) {
+      if (e instanceof ExportCancelled) {
+        toast.message("Export cancelled");
+      } else {
+        console.error(e);
+        toast.error(e instanceof Error ? e.message : "Export failed.");
+      }
+    } finally {
+      exportAbortRef.current = null;
+      setExporting(false);
+      setExportProgress(0);
+      setExportEta("");
+    }
+  }
+
+
   function formatTime(sec: number) {
     if (!isFinite(sec) || sec < 0) sec = 0;
     const m = Math.floor(sec / 60);
