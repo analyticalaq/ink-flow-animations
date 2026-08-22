@@ -451,6 +451,7 @@ function StudioPage() {
       URL.revokeObjectURL(audioUrlRef.current);
       audioUrlRef.current = null;
     }
+    audioBlobRef.current = null;
     setIsPlaying(false);
   }, [project.narration, voiceId, speed]);
 
