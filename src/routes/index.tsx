@@ -1,13 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { WhiteboardCanvas, type ArtShape, type TimelineItem } from "@/components/WhiteboardCanvas";
+import { ExportRenderer } from "@/components/ExportRenderer";
+import {
+  ExportCancelled,
+  downloadBlob,
+  exportWhiteboardVideo,
+  isExportSupported,
+} from "@/lib/exportVideo";
 import { generateTimeline } from "@/lib/generateTimeline.functions";
 import { generateArt } from "@/lib/generateArt.functions";
 import { synthesizeTTS } from "@/lib/tts.functions";
-import { Play, Pause, RotateCcw } from "lucide-react";
+import { Play, Pause, RotateCcw, Download, X } from "lucide-react";
 
 import { buildTimelineFromScript } from "@/lib/scriptToTimeline";
 import { Button } from "@/components/ui/button";
