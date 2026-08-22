@@ -1,13 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { WhiteboardCanvas, type ArtShape, type TimelineItem } from "@/components/WhiteboardCanvas";
+import { ExportRenderer } from "@/components/ExportRenderer";
+import {
+  ExportCancelled,
+  downloadBlob,
+  exportWhiteboardVideo,
+  isExportSupported,
+} from "@/lib/exportVideo";
 import { generateTimeline } from "@/lib/generateTimeline.functions";
 import { generateArt } from "@/lib/generateArt.functions";
 import { synthesizeTTS } from "@/lib/tts.functions";
-import { Play, Pause, RotateCcw } from "lucide-react";
+import { Play, Pause, RotateCcw, Download, X } from "lucide-react";
 
 import { buildTimelineFromScript } from "@/lib/scriptToTimeline";
 import { Button } from "@/components/ui/button";
@@ -209,6 +216,16 @@ function StudioPage() {
   const [showDebug, setShowDebug] = useState(false);
   const rafRef = useRef<number | null>(null);
   const autoPlayRef = useRef(false);
+  const audioBlobRef = useRef<Blob | null>(null);
+  const exportSvgRef = useRef<SVGSVGElement | null>(null);
+  const exportAbortRef = useRef<AbortController | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [exportEta, setExportEta] = useState("");
+  const onExportSvgReady = useCallback((svg: SVGSVGElement | null) => {
+    exportSvgRef.current = svg;
+  }, []);
+
 
   // Drive a rAF loop that mirrors audio.currentTime into React state so
   // the canvas (via currentTimeMs) and the highlighted word stay in lock-step
@@ -434,6 +451,7 @@ function StudioPage() {
       URL.revokeObjectURL(audioUrlRef.current);
       audioUrlRef.current = null;
     }
+    audioBlobRef.current = null;
     setIsPlaying(false);
   }, [project.narration, voiceId, speed]);
 
@@ -471,6 +489,7 @@ function StudioPage() {
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     const blob = new Blob([bytes], { type: res.mime ?? "audio/mpeg" });
+    audioBlobRef.current = blob;
     if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
     const url = URL.createObjectURL(blob);
     audioUrlRef.current = url;
@@ -556,6 +575,78 @@ function StudioPage() {
     audio.currentTime = clamped;
     setAudioTimeMs(clamped * 1000);
   }
+
+  /** One-click render of the current animation to a 1920x1080 video file. */
+  async function onExport() {
+    if (exporting) return;
+    if (!isExportSupported()) {
+      toast.error("This browser can't record video. Try Chrome or Edge.");
+      return;
+    }
+    // Stop playback so the offscreen renderer owns the animation clock.
+    audioRef.current?.pause();
+    setIsPlaying(false);
+
+    const controller = new AbortController();
+    exportAbortRef.current = controller;
+    setExporting(true);
+    setExportProgress(0);
+    setExportEta("");
+
+    try {
+      // Make sure narration exists so it can be baked into the file.
+      if (project.narration?.trim()) {
+        try {
+          await ensureAudio();
+        } catch (e) {
+          console.error(e);
+          toast.message("Exporting without narration", {
+            description: e instanceof Error ? e.message : undefined,
+          });
+        }
+      }
+      // Let the offscreen renderer mount with the current timeline.
+      await new Promise((r) => setTimeout(r, 60));
+      const svg = exportSvgRef.current;
+      if (!svg) throw new Error("Renderer not ready. Please try again.");
+
+      const durationSeconds = audioDuration > 0 ? audioDuration + 0.6 : totalDuration;
+      const { blob, extension } = await exportWhiteboardVideo({
+        svg,
+        durationSeconds,
+        audioBlob: audioBlobRef.current,
+        background: mode === "chalk" ? "#0f2a1f" : mode === "sketch" ? "#fdf6e3" : "#ffffff",
+        signal: controller.signal,
+        onProgress: (p) => {
+          setExportProgress(p.ratio);
+          setExportEta(`${formatTime(p.currentSeconds)} / ${formatTime(p.totalSeconds)}`);
+        },
+      });
+
+      const safeTitle =
+        (project.title || "whiteboard").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") ||
+        "whiteboard";
+      downloadBlob(blob, `${safeTitle}.${extension}`);
+      if (extension === "webm") {
+        toast.success("Video downloaded as .webm (MP4 encoding isn't available in this browser).");
+      } else {
+        toast.success("MP4 downloaded (1920x1080).");
+      }
+    } catch (e) {
+      if (e instanceof ExportCancelled) {
+        toast.message("Export cancelled");
+      } else {
+        console.error(e);
+        toast.error(e instanceof Error ? e.message : "Export failed.");
+      }
+    } finally {
+      exportAbortRef.current = null;
+      setExporting(false);
+      setExportProgress(0);
+      setExportEta("");
+    }
+  }
+
 
   function formatTime(sec: number) {
     if (!isFinite(sec) || sec < 0) sec = 0;
