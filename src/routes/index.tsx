@@ -216,6 +216,16 @@ function StudioPage() {
   const [showDebug, setShowDebug] = useState(false);
   const rafRef = useRef<number | null>(null);
   const autoPlayRef = useRef(false);
+  const audioBlobRef = useRef<Blob | null>(null);
+  const exportSvgRef = useRef<SVGSVGElement | null>(null);
+  const exportAbortRef = useRef<AbortController | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [exportEta, setExportEta] = useState("");
+  const onExportSvgReady = useCallback((svg: SVGSVGElement | null) => {
+    exportSvgRef.current = svg;
+  }, []);
+
 
   // Drive a rAF loop that mirrors audio.currentTime into React state so
   // the canvas (via currentTimeMs) and the highlighted word stay in lock-step
