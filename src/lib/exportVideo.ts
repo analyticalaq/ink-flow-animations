@@ -128,7 +128,12 @@ const BAKED_PROPS = [
  * inline styles, then disables animations in the clone so the standalone image
  * renders exactly the frame that is on screen right now.
  */
-function serializeFrame(svg: SVGSVGElement, fontCss: string): string {
+function serializeFrame(
+  svg: SVGSVGElement,
+  fontCss: string,
+  outWidth: number,
+  outHeight: number,
+): string {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   const liveNodes = [svg, ...Array.from(svg.querySelectorAll<Element>("*"))];
   const cloneNodes = [clone, ...Array.from(clone.querySelectorAll<Element>("*"))];
@@ -149,15 +154,15 @@ function serializeFrame(svg: SVGSVGElement, fontCss: string): string {
       const w = (live as SVGRectElement).width?.baseVal?.value;
       const animatedW = (live as SVGRectElement).getBoundingClientRect().width;
       if (typeof w === "number" && animatedW >= 0 && live.closest("clipPath")) {
-        const scale = svg.getBoundingClientRect().width / EXPORT_WIDTH || 1;
+        const scale = svg.getBoundingClientRect().width / outWidth || 1;
         target.setAttribute("width", String(animatedW / scale));
       }
     }
   }
 
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  clone.setAttribute("width", String(EXPORT_WIDTH));
-  clone.setAttribute("height", String(EXPORT_HEIGHT));
+  clone.setAttribute("width", String(outWidth));
+  clone.setAttribute("height", String(outHeight));
   clone.removeAttribute("style");
 
   const styleEl = document.createElementNS("http://www.w3.org/2000/svg", "style");
@@ -171,6 +176,8 @@ async function drawFrame(
   svgMarkup: string,
   ctx: CanvasRenderingContext2D,
   background: string,
+  outWidth: number,
+  outHeight: number,
 ): Promise<void> {
   const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`;
   const img = new Image();
@@ -178,8 +185,8 @@ async function drawFrame(
   img.src = url;
   await img.decode();
   ctx.fillStyle = background;
-  ctx.fillRect(0, 0, EXPORT_WIDTH, EXPORT_HEIGHT);
-  ctx.drawImage(img, 0, 0, EXPORT_WIDTH, EXPORT_HEIGHT);
+  ctx.fillRect(0, 0, outWidth, outHeight);
+  ctx.drawImage(img, 0, 0, outWidth, outHeight);
 }
 
 /* ---------------------------------------------------------------- encoding */
@@ -190,11 +197,11 @@ type CodecChoice = {
   audioCodec: string;
 };
 
-async function pickCodec(): Promise<CodecChoice> {
+async function pickCodec(outWidth: number, outHeight: number): Promise<CodecChoice> {
   const mp4 = await VideoEncoder.isConfigSupported({
     codec: "avc1.640028",
-    width: EXPORT_WIDTH,
-    height: EXPORT_HEIGHT,
+    width: outWidth,
+    height: outHeight,
     bitrate: 8_000_000,
     framerate: EXPORT_FPS,
   }).catch(() => null);
@@ -231,6 +238,9 @@ export type ExportOptions = {
   audioBlob?: Blob | null;
   /** Board background colour, painted under every frame. */
   background?: string;
+  /** Output resolution (defaults to 1920x1080). */
+  width?: number;
+  height?: number;
   onProgress?: (p: ExportProgress) => void;
   signal?: AbortSignal;
 };
@@ -240,6 +250,8 @@ export async function exportWhiteboardVideo({
   durationSeconds,
   audioBlob = null,
   background = "#ffffff",
+  width: outWidth = EXPORT_WIDTH,
+  height: outHeight = EXPORT_HEIGHT,
   onProgress,
   signal,
 }: ExportOptions): Promise<ExportResult> {
@@ -251,7 +263,7 @@ export async function exportWhiteboardVideo({
 
   const [fontCss, choice, audioBuffer] = await Promise.all([
     getInlinedFontCss(),
-    pickCodec(),
+    pickCodec(outWidth, outHeight),
     decodeNarration(audioBlob),
   ]);
   throwIfCancelled();
@@ -268,7 +280,7 @@ export async function exportWhiteboardVideo({
     ? new Mp4Muxer({
         target: target as InstanceType<typeof Mp4Target>,
         fastStart: "in-memory",
-        video: { codec: "avc", width: EXPORT_WIDTH, height: EXPORT_HEIGHT, frameRate: EXPORT_FPS },
+        video: { codec: "avc", width: outWidth, height: outHeight, frameRate: EXPORT_FPS },
         ...(audioBuffer
           ? {
               audio: {
@@ -281,7 +293,7 @@ export async function exportWhiteboardVideo({
       })
     : new WebmMuxer({
         target: target as InstanceType<typeof WebmTarget>,
-        video: { codec: "V_VP9", width: EXPORT_WIDTH, height: EXPORT_HEIGHT, frameRate: EXPORT_FPS },
+        video: { codec: "V_VP9", width: outWidth, height: outHeight, frameRate: EXPORT_FPS },
         ...(audioBuffer
           ? {
               audio: {
@@ -308,16 +320,16 @@ export async function exportWhiteboardVideo({
   });
   videoEncoder.configure({
     codec: choice.videoCodec,
-    width: EXPORT_WIDTH,
-    height: EXPORT_HEIGHT,
+    width: outWidth,
+    height: outHeight,
     bitrate: 8_000_000,
     framerate: EXPORT_FPS,
     ...(useMp4 ? { avc: { format: "avc" as const } } : {}),
   });
 
   const canvas = document.createElement("canvas");
-  canvas.width = EXPORT_WIDTH;
-  canvas.height = EXPORT_HEIGHT;
+  canvas.width = outWidth;
+  canvas.height = outHeight;
   const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) throw new Error("Could not create the export canvas.");
 
@@ -340,7 +352,13 @@ export async function exportWhiteboardVideo({
       // Let the browser apply the seeked styles before we read them back.
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
-      await drawFrame(serializeFrame(svg, fontCss), ctx, background);
+      await drawFrame(
+        serializeFrame(svg, fontCss, outWidth, outHeight),
+        ctx,
+        background,
+        outWidth,
+        outHeight,
+      );
 
       const videoFrame = new VideoFrame(canvas, {
         timestamp: Math.round((frame / EXPORT_FPS) * 1_000_000),
