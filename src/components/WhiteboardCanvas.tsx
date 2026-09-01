@@ -192,10 +192,13 @@ export interface WhiteboardCanvasProps {
    *   currentTimeMs = audio.currentTime * 1000
    */
   currentTimeMs?: number;
+  /** Internal canvas resolution (defaults to 1920x1080 landscape). */
+  width?: number;
+  height?: number;
 }
 
-const WIDTH = 1920;
-const HEIGHT = 1080;
+export const DEFAULT_WIDTH = 1920;
+export const DEFAULT_HEIGHT = 1080;
 
 function wrapWords(text: string, maxCharacters: number): string[] {
   const words = text.trim().split(/\s+/).filter(Boolean);
@@ -780,7 +783,18 @@ function circlePath(cx: number, cy: number, r: number): string {
   return `M ${cx + r} ${cy} a ${r} ${r} 0 1 1 -${r * 2} 0 a ${r} ${r} 0 1 1 ${r * 2} 0`;
 }
 
-export function WhiteboardCanvas({ timeline, mode = "marker", loop = false, className, playing = true, currentTimeMs }: WhiteboardCanvasProps) {
+export function WhiteboardCanvas({
+  timeline,
+  mode = "marker",
+  loop = false,
+  className,
+  playing = true,
+  currentTimeMs,
+  width = DEFAULT_WIDTH,
+  height = DEFAULT_HEIGHT,
+}: WhiteboardCanvasProps) {
+  const WIDTH = width;
+  const HEIGHT = height;
   const isChalk = mode === "chalk";
   const isSketch = mode === "sketch";
   /** Flat vector-cartoon style (reference: Simi / VideoScribe explainers). */
