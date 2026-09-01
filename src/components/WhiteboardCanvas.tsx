@@ -1033,9 +1033,9 @@ export function WhiteboardCanvas({
 
           if (item.type === "title") {
             const text = isFlat ? item.content.toUpperCase() : item.content;
-            const titleLines = wrapWords(text, 25);
+            const titleLines = wrapWords(text, Math.max(14, Math.round((25 * WIDTH) / 1920)));
             const longestLine = Math.max(...titleLines.map((line) => line.length), 1);
-            const size = item.size ?? Math.max(70, Math.min(110, 1500 / (longestLine * 0.62)));
+            const size = item.size ?? Math.max(70, Math.min(110, (WIDTH * 0.78) / (longestLine * 0.62)));
             const approxW = longestLine * size * (isFlat ? 0.62 : 0.42);
             const x = WIDTH / 2;
             const y = titleLines.length > 1 ? 105 : 140;
