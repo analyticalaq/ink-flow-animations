@@ -1057,7 +1057,38 @@ function StudioPage() {
                 </table>
               </div>
             ) : null}
+            {exporting ? (
+              <div className="absolute inset-x-0 bottom-0 z-20 flex items-center gap-3 border-t border-border/40 bg-background/90 px-4 py-3 backdrop-blur">
+                <div className="flex-1">
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="font-medium">
+                      Rendering {Math.round(exportProgress * 100)}%
+                    </span>
+                    <span className="tabular-nums text-muted-foreground">{exportEta}</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary transition-[width]"
+                      style={{ width: `${Math.max(2, exportProgress * 100)}%` }}
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => exportAbortRef.current?.abort()}
+                  className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-accent"
+                >
+                  <X size={13} /> Cancel
+                </button>
+              </div>
+            ) : null}
           </div>
+
+          {exporting ? (
+            <ExportRenderer timeline={scaledItems} mode={mode} onReady={onExportSvgReady} />
+          ) : null}
+
+
 
           {/* YouTube-style player controls — drives both audio + canvas */}
           <div className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2 shadow-sm">
