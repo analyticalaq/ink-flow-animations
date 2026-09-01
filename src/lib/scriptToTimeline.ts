@@ -152,10 +152,18 @@ function chunkScenes(sentences: string[], targetScenes: number): string[][] {
 
 export function buildTimelineFromScript(
   script: string,
-  opts: { durationMinutes?: number; pacing?: "slow" | "normal" | "fast" } = {},
+  opts: {
+    durationMinutes?: number;
+    pacing?: "slow" | "normal" | "fast";
+    width?: number;
+    height?: number;
+  } = {},
 ): { title: string; narration: string; items: TimelineItem[] } {
   const durationMinutes = opts.durationMinutes ?? 2;
   const pacing = opts.pacing ?? "normal";
+  const W = opts.width ?? 1920;
+  const H = opts.height ?? 1080;
+  const vertical = H > W;
   const targetSeconds = durationMinutes * 60;
   const sentences = splitSentences(script);
   const targetScenes = Math.max(3, Math.min(40, Math.round(targetSeconds / 12)));
@@ -181,12 +189,21 @@ export function buildTimelineFromScript(
       scene: sceneIdx,
     });
 
-    const layouts = [
-      [[430, 500], [960, 500], [1490, 500], [960, 800]],
-      [[520, 460], [1400, 460], [520, 800], [1400, 800]],
-      [[400, 650], [800, 470], [1200, 470], [1600, 650]],
+    // Fractional layouts so they work for both 16:9 and 9:16 canvases.
+    const layoutsWide = [
+      [[0.224, 0.463], [0.5, 0.463], [0.776, 0.463], [0.5, 0.741]],
+      [[0.271, 0.426], [0.729, 0.426], [0.271, 0.741], [0.729, 0.741]],
+      [[0.208, 0.602], [0.417, 0.435], [0.625, 0.435], [0.833, 0.602]],
     ] as const;
-    const layout = layouts[sceneIdx % layouts.length];
+    const layoutsTall = [
+      [[0.5, 0.26], [0.5, 0.45], [0.5, 0.64], [0.5, 0.82]],
+      [[0.3, 0.3], [0.7, 0.3], [0.3, 0.62], [0.7, 0.62]],
+      [[0.5, 0.28], [0.29, 0.52], [0.71, 0.52], [0.5, 0.76]],
+    ] as const;
+    const pool = vertical ? layoutsTall : layoutsWide;
+    const layout = pool[sceneIdx % pool.length].map(
+      ([fx, fy]) => [Math.round(fx * W), Math.round(fy * H)] as const,
+    );
     const xs = picks.map((_, i) => layout[i][0]);
     const ys = picks.map((_, i) => layout[i][1]);
 
@@ -197,17 +214,19 @@ export function buildTimelineFromScript(
         name: p.icon,
         x: xs[i],
         y: ys[i],
-        size: 210 + ((i * 19) % 45),
+        size: Math.round((vertical ? 0.24 * W : 0.109 * W) + ((i * 19) % 45)),
         label: p.label,
         delay: at,
         duration: 1.4,
         scene: sceneIdx,
       });
       if (i > 0) {
+        const gap = Math.round(W * 0.057);
+        const sameRow = Math.abs(ys[i] - ys[i - 1]) < 40;
         items.push({
           type: "arrow",
-          from: [xs[i - 1] + 110, ys[i - 1]],
-          to: [xs[i] - 110, ys[i]],
+          from: sameRow ? [xs[i - 1] + gap, ys[i - 1]] : [xs[i - 1], ys[i - 1] + gap],
+          to: sameRow ? [xs[i] - gap, ys[i]] : [xs[i], ys[i] - gap],
           delay: at - baseGap * 0.35,
           duration: 0.7,
           scene: sceneIdx,
@@ -220,11 +239,11 @@ export function buildTimelineFromScript(
       ? calloutSource.split(/\s+/).slice(0, 6).join(" ").replace(/[.,;:!?]$/, "")
       : "";
     if (callout) {
-      const calloutY = picks.length > 3 ? 955 : 900;
+      const calloutY = Math.round(H * (picks.length > 3 ? 0.884 : 0.833));
       items.push({
         type: "text",
         content: callout,
-        x: 960,
+        x: Math.round(W / 2),
         y: calloutY,
         size: 44,
         align: "center",
