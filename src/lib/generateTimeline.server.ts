@@ -5,6 +5,7 @@ export const timelineInputSchema = z.object({
   style: z.enum(["explainer", "story", "lecture", "pitch"]).default("explainer"),
   pacing: z.enum(["slow", "normal", "fast"]).default("normal"),
   durationMinutes: z.number().min(1).max(10).default(2),
+  aspect: z.enum(["16:9", "9:16"]).default("16:9"),
 });
 
 export type GeneratedItem = {
@@ -49,13 +50,13 @@ IconName values (use these only):
 "brain","bulb","box","stick","chart","star","ship","mountain","castle","mosque","crown","king","queen","sword","flag","tower","scroll","book","sun","tree","globe","scale","horse","shield","gear","heart","rocket","computer","person","money","clock","target","document","megaphone","cloud","phone","robot","leaf","fire","lock","key","chat","checkmark","cross","question","house","car","graph","pencil","camera","music","mail","calendar","search","settings","trophy","gift","bag","cart","bell","users","puzzle","plane","bolt","moon","coffee","smile","atom","flask","magnet","wand","battery","wifi","droplet","snowflake","umbrella","pizza","bicycle","factory","school","hospital"
 
 Rules:
-- Canvas is 1920x1080. Keep coordinates within x: 120..1800, y: 240..980. Reserve y < 220 for the title.
+- Canvas dimensions are given in the user message. Respect the stated safe area and title band exactly.
 - Use a pure white scene with bold black cartoon outlines and a restrained flat-color palette. Do not request textures, realism, gradients, shadows, or decorative backgrounds.
 - Build one clear visual argument per scene. Each scene is a self-contained frame lasting 8-14 seconds with a short heading and 3-6 supporting elements.
 - Start each new scene 0.6s after the previous scene ends. Sequence elements 1.0-2.0s apart.
 - Translate EACH sentence or claim into a literal visual metaphor. The title, icons, labels, arrows, and narration must describe the same idea. Never add generic filler icons.
 - Compose icons as problem/cause/effect, before/after, input/process/output, a vertical list, or a 2x2 group. Keep generous whitespace and never overlap bounds.
-- Use large icons (180-300), centers at least 360px apart, with labels directly below or beside them.
+- Use large icons, centers far enough apart that nothing overlaps, with labels directly below or beside them.
 - Titles are 2-5 words, labels 1-3 words, callouts under 6 words, all uppercase-friendly. Never put paragraphs on canvas.
 - Choose the closest content-specific icons: tech uses robot/computer/brain/cloud; business uses rocket/target/money/chart/users; education uses school/book/pencil/bulb; health uses hospital/heart/flask/person; security uses lock/key/shield; communication uses chat/mail/phone; history uses castle/crown/scroll/flag.
 - Match the requested total duration. The final item's delay + duration must be inside the requested target window. Expand narration naturally to fill it.`;
@@ -77,6 +78,10 @@ export async function generateTimelineResult(data: z.infer<typeof timelineInputS
     : data.pacing === "fast"
       ? "Use 0.8-1.4s gaps and 7-10s scenes."
       : "Use 1.2-1.8s gaps and 10-12s scenes.";
+  const vertical = data.aspect === "9:16";
+  const layoutHint = vertical
+    ? "CANVAS: 1080x1920 VERTICAL (9:16, phone/reels). Keep coordinates within x: 90..990, y: 380..1760; reserve y < 340 for the title. Stack elements in a single vertical column (or a 2-wide grid), centers at least 320px apart vertically. Icon size 220-320. Titles 2-4 words, labels 1-2 words. Never place two icons side by side wider than 480px apart."
+    : "CANVAS: 1920x1080 LANDSCAPE (16:9). Keep coordinates within x: 120..1800, y: 240..980; reserve y < 220 for the title. Icon size 180-300, centers at least 360px apart.";
   const durationHint = `TARGET: ${targetSeconds}s. Last item must end between ${minSec}s and ${maxSec}s. Build ${minScenes}-${maxScenes} scenes and ${itemMin}-${itemMax} items.`;
 
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -86,7 +91,7 @@ export async function generateTimelineResult(data: z.infer<typeof timelineInputS
       model: "google/gemini-3-flash-preview",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: `Style: ${data.style}. ${pacingHint}\n${durationHint}\n\nSCRIPT / TOPIC:\n${data.script}` },
+        { role: "user", content: `${layoutHint}\nStyle: ${data.style}. ${pacingHint}\n${durationHint}\n\nSCRIPT / TOPIC:\n${data.script}` },
       ],
       response_format: { type: "json_object" },
     }),
