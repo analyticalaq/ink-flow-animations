@@ -372,15 +372,29 @@ export async function exportWhiteboardVideo({
     if (signal?.aborted) throw new ExportCancelled();
   };
 
-  const [fontCss, choice, audioBuffer] = await Promise.all([
+  const totalSeconds = Math.max(1, durationSeconds);
+  const totalFrames = Math.ceil(totalSeconds * EXPORT_FPS);
+  const bitrate = bitrateFor(outWidth, outHeight, totalSeconds);
+
+  const [fontCss, decodedAudio] = await Promise.all([
     getInlinedFontCss(),
-    pickCodec(outWidth, outHeight),
     decodeNarration(audioBlob),
   ]);
   throwIfCancelled();
 
-  const totalSeconds = Math.max(1, durationSeconds);
-  const totalFrames = Math.ceil(totalSeconds * EXPORT_FPS);
+  const choice = await pickCodec(
+    outWidth,
+    outHeight,
+    bitrate,
+    decodedAudio
+      ? {
+          sampleRate: decodedAudio.sampleRate,
+          channels: Math.min(2, decodedAudio.numberOfChannels),
+        }
+      : null,
+  );
+  const audioBuffer = choice.canEncodeAudio ? decodedAudio : null;
+  throwIfCancelled();
 
   const { Muxer: Mp4Muxer, ArrayBufferTarget: Mp4Target } = await import("mp4-muxer");
   const { Muxer: WebmMuxer, ArrayBufferTarget: WebmTarget } = await import("webm-muxer");
@@ -424,7 +438,13 @@ export async function exportWhiteboardVideo({
 
   let encodeError: unknown = null;
   const videoEncoder = new VideoEncoder({
-    output: (chunk, meta) => anyMuxer.addVideoChunk(chunk, meta),
+    output: (chunk, meta) => {
+      try {
+        anyMuxer.addVideoChunk(chunk, meta);
+      } catch (e) {
+        encodeError = e;
+      }
+    },
     error: (e) => {
       encodeError = e;
     },
@@ -433,23 +453,26 @@ export async function exportWhiteboardVideo({
     codec: choice.videoCodec,
     width: outWidth,
     height: outHeight,
-    bitrate: 8_000_000,
+    bitrate,
     framerate: EXPORT_FPS,
+    latencyMode: "quality",
     ...(useMp4 ? { avc: { format: "avc" as const } } : {}),
   });
 
-  const canvas = document.createElement("canvas");
-  canvas.width = outWidth;
-  canvas.height = outHeight;
-  const ctx = canvas.getContext("2d", { alpha: false });
-  if (!ctx) throw new Error("Could not create the export canvas.");
+  const painter = createPainter(outWidth, outHeight, background);
+  let serializer = new FrameSerializer(svg, fontCss, outWidth, outHeight);
 
   const animations = svg.getAnimations({ subtree: true });
+
+  const failWith = (e: unknown): never => {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(`Video encoding failed (${choice.videoCodec} ${outWidth}x${outHeight}): ${msg}`);
+  };
 
   try {
     for (let frame = 0; frame < totalFrames; frame++) {
       throwIfCancelled();
-      if (encodeError) throw encodeError;
+      if (encodeError) failWith(encodeError);
 
       const timeMs = (frame / EXPORT_FPS) * 1000;
       for (const a of animations) {
@@ -463,24 +486,25 @@ export async function exportWhiteboardVideo({
       // Let the browser apply the seeked styles before we read them back.
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
 
-      await drawFrame(
-        serializeFrame(svg, fontCss, outWidth, outHeight),
-        ctx,
-        background,
-        outWidth,
-        outHeight,
-      );
+      if (serializer.isStale()) {
+        serializer = new FrameSerializer(svg, fontCss, outWidth, outHeight);
+      }
+      await painter.draw(serializer.serialize());
 
-      const videoFrame = new VideoFrame(canvas, {
+      const videoFrame = new VideoFrame(painter.frameSource as CanvasImageSource, {
         timestamp: Math.round((frame / EXPORT_FPS) * 1_000_000),
         duration: Math.round(1_000_000 / EXPORT_FPS),
       });
       videoEncoder.encode(videoFrame, { keyFrame: frame % (EXPORT_FPS * 2) === 0 });
       videoFrame.close();
 
-      if (videoEncoder.encodeQueueSize > 8) {
-        await videoEncoder.flush();
+      // Backpressure without flushing (a flush forces the encoder to drain and
+      // resets its lookahead, which made long exports crawl).
+      while (videoEncoder.encodeQueueSize > 12 && !encodeError) {
+        throwIfCancelled();
+        await new Promise<void>((r) => setTimeout(r, 4));
       }
+
       onProgress?.({
         ratio: (frame + 1) / totalFrames,
         currentSeconds: (frame + 1) / EXPORT_FPS,
@@ -488,7 +512,9 @@ export async function exportWhiteboardVideo({
       });
     }
 
-    await videoEncoder.flush();
+    if (encodeError) failWith(encodeError);
+    await videoEncoder.flush().catch(failWith);
+    if (encodeError) failWith(encodeError);
 
     if (audioBuffer) {
       throwIfCancelled();
@@ -497,6 +523,9 @@ export async function exportWhiteboardVideo({
 
     anyMuxer.finalize();
     const buffer = (target as { buffer: ArrayBuffer }).buffer;
+    if (!buffer || buffer.byteLength === 0) {
+      throw new Error("The encoder produced an empty file. Try a shorter video or Chrome.");
+    }
     return {
       blob: new Blob([buffer], { type: useMp4 ? "video/mp4" : "video/webm" }),
       extension: choice.extension,
@@ -516,6 +545,7 @@ export async function exportWhiteboardVideo({
     }
   }
 }
+
 
 async function encodeAudio(
   buffer: AudioBuffer,
