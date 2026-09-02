@@ -190,6 +190,9 @@ function StudioPage() {
   const [style, setStyle] = useState<"explainer" | "story" | "lecture" | "pitch">("explainer");
   const [pacing, setPacing] = useState<Pacing>("normal");
   const [durationMinutes, setDurationMinutes] = useState<number>(2);
+  const [aspect, setAspect] = useState<"16:9" | "9:16">("16:9");
+  const canvasWidth = aspect === "9:16" ? 1080 : 1920;
+  const canvasHeight = aspect === "9:16" ? 1920 : 1080;
   const [mode, setMode] = useState<Mode>("marker");
   const [project, setProject] = useState<Project>(DEMO);
   const [loading, setLoading] = useState(false);
@@ -615,6 +618,8 @@ function StudioPage() {
         svg,
         durationSeconds,
         audioBlob: audioBlobRef.current,
+        width: canvasWidth,
+        height: canvasHeight,
         background: mode === "chalk" ? "#0f2a1f" : mode === "sketch" ? "#fdf6e3" : "#ffffff",
         signal: controller.signal,
         onProgress: (p) => {
@@ -630,7 +635,7 @@ function StudioPage() {
       if (extension === "webm") {
         toast.success("Video downloaded as .webm (MP4 encoding isn't available in this browser).");
       } else {
-        toast.success("MP4 downloaded (1920x1080).");
+        toast.success(`MP4 downloaded (${canvasWidth}x${canvasHeight}).`);
       }
     } catch (e) {
       if (e instanceof ExportCancelled) {
@@ -683,10 +688,10 @@ function StudioPage() {
     if (!script.trim()) return;
     setLoading(true);
     try {
-      const res = await generate({ data: { script, style, pacing, durationMinutes } });
+      const res = await generate({ data: { script, style, pacing, durationMinutes, aspect } });
       if ("error" in res && res.error) {
         // Fall back to deterministic local parser so the user always gets a result.
-        const built = buildTimelineFromScript(script, { durationMinutes, pacing });
+        const built = buildTimelineFromScript(script, { durationMinutes, pacing, width: canvasWidth, height: canvasHeight });
         setProject(built);
         setPlayKey((k) => k + 1);
         autoPlayRef.current = true;
@@ -694,7 +699,7 @@ function StudioPage() {
         return;
       }
       if (!("items" in res) || !res.items?.length) {
-        const built = buildTimelineFromScript(script, { durationMinutes, pacing });
+        const built = buildTimelineFromScript(script, { durationMinutes, pacing, width: canvasWidth, height: canvasHeight });
         setProject(built);
         setPlayKey((k) => k + 1);
         autoPlayRef.current = true;
@@ -720,7 +725,7 @@ function StudioPage() {
 
   function onAutoBuild() {
     if (!script.trim()) return;
-    const built = buildTimelineFromScript(script, { durationMinutes, pacing });
+    const built = buildTimelineFromScript(script, { durationMinutes, pacing, width: canvasWidth, height: canvasHeight });
     setProject(built);
     setPlayKey((k) => k + 1);
     autoPlayRef.current = true;
@@ -803,6 +808,16 @@ function StudioPage() {
                   <SelectItem value="story">Story</SelectItem>
                   <SelectItem value="lecture">Lecture</SelectItem>
                   <SelectItem value="pitch">Pitch</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Format</Label>
+              <Select value={aspect} onValueChange={(v) => setAspect(v as "16:9" | "9:16")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="16:9">Landscape 16:9</SelectItem>
+                  <SelectItem value="9:16">Vertical 9:16</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -961,13 +976,19 @@ function StudioPage() {
           <div
             ref={canvasWrapRef}
             className={`relative w-full overflow-hidden rounded-lg border shadow-sm ${
-              isFullscreen ? "h-screen bg-background" : "aspect-[16/9]"
+              isFullscreen
+                ? "h-screen bg-background"
+                : aspect === "9:16"
+                  ? "mx-auto aspect-[9/16] max-w-[420px]"
+                  : "aspect-[16/9]"
             }`}
           >
             <WhiteboardCanvas
-              key={`${mode}-${playKey}`}
+              key={`${mode}-${aspect}-${playKey}`}
               timeline={scaledItems}
               mode={mode}
+              width={canvasWidth}
+              height={canvasHeight}
               currentTimeMs={audioTimeMs}
               playing={isPlaying}
             />
@@ -1085,7 +1106,13 @@ function StudioPage() {
           </div>
 
           {exporting ? (
-            <ExportRenderer timeline={scaledItems} mode={mode} onReady={onExportSvgReady} />
+            <ExportRenderer
+              timeline={scaledItems}
+              mode={mode}
+              width={canvasWidth}
+              height={canvasHeight}
+              onReady={onExportSvgReady}
+            />
           ) : null}
 
 
