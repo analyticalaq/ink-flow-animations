@@ -121,72 +121,119 @@ const BAKED_PROPS = [
   "display",
   "visibility",
   "mix-blend-mode",
+  // The text-sweep clip animates the rect's CSS `width` geometry property.
+  "width",
+  "height",
 ] as const;
 
 /**
- * Clones the live SVG and writes every computed (mid-animation) value into
- * inline styles, then disables animations in the clone so the standalone image
- * renders exactly the frame that is on screen right now.
+ * Keeps a single clone of the live SVG alive for the whole export and only
+ * rewrites the animated inline styles each frame. Cloning + re-querying the
+ * whole tree per frame was the main cost of the old exporter.
  */
-function serializeFrame(
-  svg: SVGSVGElement,
-  fontCss: string,
-  outWidth: number,
-  outHeight: number,
-): string {
-  const clone = svg.cloneNode(true) as SVGSVGElement;
-  const liveNodes = [svg, ...Array.from(svg.querySelectorAll<Element>("*"))];
-  const cloneNodes = [clone, ...Array.from(clone.querySelectorAll<Element>("*"))];
+class FrameSerializer {
+  private clone: SVGSVGElement;
+  private pairs: Array<{ style: CSSStyleDeclaration; target: SVGElement }> = [];
+  private serializer = new XMLSerializer();
 
-  for (let i = 0; i < liveNodes.length && i < cloneNodes.length; i++) {
-    const live = liveNodes[i];
-    const target = cloneNodes[i] as SVGElement;
-    const cs = window.getComputedStyle(live);
-    let inline = "animation:none;";
-    for (const prop of BAKED_PROPS) {
-      const value = cs.getPropertyValue(prop);
-      if (value) inline += `${prop}:${value};`;
+  constructor(
+    private svg: SVGSVGElement,
+    fontCss: string,
+    outWidth: number,
+    outHeight: number,
+  ) {
+    this.clone = svg.cloneNode(true) as SVGSVGElement;
+    const liveNodes = [svg, ...Array.from(svg.querySelectorAll<Element>("*"))];
+    const cloneNodes = [
+      this.clone,
+      ...Array.from(this.clone.querySelectorAll<Element>("*")),
+    ];
+    for (let i = 0; i < liveNodes.length && i < cloneNodes.length; i++) {
+      const target = cloneNodes[i] as SVGElement;
+      target.removeAttribute("class");
+      // getComputedStyle returns a live view — read it again each frame.
+      this.pairs.push({ style: window.getComputedStyle(liveNodes[i]), target });
     }
-    target.setAttribute("style", inline);
-    target.removeAttribute("class");
-    // Geometry that the text-sweep clip animates lives on the attribute.
-    if (target.tagName.toLowerCase() === "rect") {
-      const w = (live as SVGRectElement).width?.baseVal?.value;
-      const animatedW = (live as SVGRectElement).getBoundingClientRect().width;
-      if (typeof w === "number" && animatedW >= 0 && live.closest("clipPath")) {
-        const scale = svg.getBoundingClientRect().width / outWidth || 1;
-        target.setAttribute("width", String(animatedW / scale));
-      }
-    }
+
+    this.clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    this.clone.setAttribute("width", String(outWidth));
+    this.clone.setAttribute("height", String(outHeight));
+    this.clone.removeAttribute("style");
+
+    const styleEl = document.createElementNS("http://www.w3.org/2000/svg", "style");
+    styleEl.textContent = fontCss;
+    this.clone.insertBefore(styleEl, this.clone.firstChild);
   }
 
-  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  clone.setAttribute("width", String(outWidth));
-  clone.setAttribute("height", String(outHeight));
-  clone.removeAttribute("style");
+  /** True when the live tree changed shape and the clone must be rebuilt. */
+  isStale(): boolean {
+    return this.svg.querySelectorAll("*").length + 1 !== this.pairs.length;
+  }
 
-  const styleEl = document.createElementNS("http://www.w3.org/2000/svg", "style");
-  styleEl.textContent = fontCss;
-  clone.insertBefore(styleEl, clone.firstChild);
-
-  return new XMLSerializer().serializeToString(clone);
+  serialize(): string {
+    for (const { style, target } of this.pairs) {
+      let inline = "animation:none;";
+      for (const prop of BAKED_PROPS) {
+        const value = style.getPropertyValue(prop);
+        if (value) inline += `${prop}:${value};`;
+      }
+      target.setAttribute("style", inline);
+    }
+    return this.serializer.serializeToString(this.clone);
+  }
 }
 
-async function drawFrame(
-  svgMarkup: string,
-  ctx: CanvasRenderingContext2D,
-  background: string,
-  outWidth: number,
-  outHeight: number,
-): Promise<void> {
-  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMarkup)}`;
-  const img = new Image();
-  img.decoding = "sync";
-  img.src = url;
-  await img.decode();
-  ctx.fillStyle = background;
-  ctx.fillRect(0, 0, outWidth, outHeight);
-  ctx.drawImage(img, 0, 0, outWidth, outHeight);
+type Painter = {
+  draw: (svgMarkup: string) => Promise<void>;
+  frameSource: HTMLCanvasElement | OffscreenCanvas;
+};
+
+function createPainter(outWidth: number, outHeight: number, background: string): Painter {
+  const canvas: HTMLCanvasElement | OffscreenCanvas =
+    typeof OffscreenCanvas === "function"
+      ? new OffscreenCanvas(outWidth, outHeight)
+      : Object.assign(document.createElement("canvas"), {
+          width: outWidth,
+          height: outHeight,
+        });
+  const ctx = (
+    canvas as HTMLCanvasElement
+  ).getContext("2d", { alpha: false }) as CanvasRenderingContext2D | null;
+  if (!ctx) throw new Error("Could not create the export canvas.");
+
+  return {
+    frameSource: canvas,
+    async draw(svgMarkup: string) {
+      const blob = new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" });
+      let bitmap: ImageBitmap | null = null;
+      try {
+        bitmap = await createImageBitmap(blob, {
+          resizeWidth: outWidth,
+          resizeHeight: outHeight,
+          resizeQuality: "high",
+        });
+      } catch {
+        bitmap = null;
+      }
+      ctx.fillStyle = background;
+      ctx.fillRect(0, 0, outWidth, outHeight);
+      if (bitmap) {
+        ctx.drawImage(bitmap, 0, 0, outWidth, outHeight);
+        bitmap.close();
+        return;
+      }
+      // Safari/Firefox can't decode SVG through createImageBitmap.
+      const url = URL.createObjectURL(blob);
+      try {
+        const img = new Image();
+        img.src = url;
+        await img.decode();
+        ctx.drawImage(img, 0, 0, outWidth, outHeight);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    },
+  };
 }
 
 /* ---------------------------------------------------------------- encoding */
@@ -195,20 +242,83 @@ type CodecChoice = {
   extension: "mp4" | "webm";
   videoCodec: string;
   audioCodec: string;
+  /** False when no audio codec is available for the chosen container. */
+  canEncodeAudio: boolean;
 };
 
-async function pickCodec(outWidth: number, outHeight: number): Promise<CodecChoice> {
-  const mp4 = await VideoEncoder.isConfigSupported({
-    codec: "avc1.640028",
-    width: outWidth,
-    height: outHeight,
-    bitrate: 8_000_000,
-    framerate: EXPORT_FPS,
-  }).catch(() => null);
-  if (mp4?.supported) {
-    return { extension: "mp4", videoCodec: "avc1.640028", audioCodec: "mp4a.40.2" };
+/** H.264 profile/level candidates, widest support first, then higher levels. */
+const H264_CANDIDATES = [
+  "avc1.640028", // High 4.0
+  "avc1.64002A", // High 4.2
+  "avc1.640032", // High 5.0
+  "avc1.640033", // High 5.1
+  "avc1.4D4028", // Main 4.0
+  "avc1.42E028", // Baseline 4.0
+];
+
+function bitrateFor(outWidth: number, outHeight: number, durationSeconds: number): number {
+  // ~0.1 bits per pixel per frame, clamped, and trimmed for long renders so a
+  // 10-minute export doesn't build a gigabyte-sized buffer in memory.
+  const perFrame = outWidth * outHeight * 0.1;
+  let bitrate = Math.round(Math.min(10_000_000, Math.max(3_000_000, perFrame * EXPORT_FPS)));
+  if (durationSeconds > 240) bitrate = Math.round(bitrate * 0.6);
+  else if (durationSeconds > 120) bitrate = Math.round(bitrate * 0.8);
+  return bitrate;
+}
+
+async function supportsVideo(codec: string, w: number, h: number, bitrate: number) {
+  try {
+    const r = await VideoEncoder.isConfigSupported({
+      codec,
+      width: w,
+      height: h,
+      bitrate,
+      framerate: EXPORT_FPS,
+    });
+    return !!r.supported;
+  } catch {
+    return false;
   }
-  return { extension: "webm", videoCodec: "vp09.00.50.08", audioCodec: "opus" };
+}
+
+async function supportsAudio(codec: string, sampleRate: number, channels: number) {
+  try {
+    const r = await AudioEncoder.isConfigSupported({
+      codec,
+      sampleRate,
+      numberOfChannels: channels,
+      bitrate: 128_000,
+    });
+    return !!r.supported;
+  } catch {
+    return false;
+  }
+}
+
+async function pickCodec(
+  outWidth: number,
+  outHeight: number,
+  bitrate: number,
+  audio: { sampleRate: number; channels: number } | null,
+): Promise<CodecChoice> {
+  for (const codec of H264_CANDIDATES) {
+    if (await supportsVideo(codec, outWidth, outHeight, bitrate)) {
+      const canEncodeAudio = audio
+        ? await supportsAudio("mp4a.40.2", audio.sampleRate, audio.channels)
+        : false;
+      return { extension: "mp4", videoCodec: codec, audioCodec: "mp4a.40.2", canEncodeAudio };
+    }
+  }
+  const vp9 = "vp09.00.50.08";
+  if (await supportsVideo(vp9, outWidth, outHeight, bitrate)) {
+    const canEncodeAudio = audio
+      ? await supportsAudio("opus", audio.sampleRate, audio.channels)
+      : false;
+    return { extension: "webm", videoCodec: vp9, audioCodec: "opus", canEncodeAudio };
+  }
+  throw new Error(
+    `This browser can't encode ${outWidth}x${outHeight} video. Try Chrome, or switch format.`,
+  );
 }
 
 async function decodeNarration(
@@ -228,6 +338,7 @@ async function decodeNarration(
     return null;
   }
 }
+
 
 export type ExportOptions = {
   /** Live SVG element of the offscreen 1920x1080 renderer. */
