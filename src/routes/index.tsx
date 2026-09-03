@@ -1012,7 +1012,7 @@ function StudioPage() {
                 onClick={onExport}
                 disabled={exporting || !project.items.length}
                 aria-label="Download MP4"
-                title="Download 1920x1080 MP4"
+                title={`Download ${canvasWidth}x${canvasHeight} video`}
                 className="rounded-md border border-border/40 bg-background/70 p-2 text-foreground shadow-sm backdrop-blur transition-all hover:scale-105 hover:bg-background active:scale-95 disabled:opacity-50"
               >
                 <Download size={16} />
